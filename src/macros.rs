@@ -91,10 +91,73 @@ macro_rules! khash {
     });
 }
 
+#[macro_export]
+macro_rules! int_node {
+    ($value:expr) => (
+        $crate::ast::KNode::Int(
+            $crate::ast::IntegerLiteral {
+                token: $crate::lexer::token::Token { token_type: TokenType::Int, literal: format!("{}", $value) },
+                value: $value,
+            }
+        )
+    );
+}
+
+#[macro_export]
+macro_rules! str_node {
+    ($value:expr) => (
+        $crate::ast::KNode::Str(
+            $crate::ast::StringLiteral {
+                token: $crate::lexer::token::Token { token_type: TokenType::String, literal: $value.to_string() },
+                value: $value.to_string(),
+            }
+        )
+    );
+}
+
+#[macro_export]
+macro_rules! bool_node {
+    ($value:expr) => ({
+        let literal = if $value {
+            $crate::ast::BooleanLiteral {
+                token: $crate::lexer::token::Token { token_type: TokenType::True, literal: "true".to_string() },
+                value: $value,
+            }
+        } else {
+            $crate::ast::BooleanLiteral {
+                token: $crate::lexer::token::Token { token_type: TokenType::False, literal: "false".to_string() },
+                value: $value,
+            }
+        };
+
+        $crate::ast::KNode::Bool(literal)
+    });
+}
+
+#[macro_export]
+macro_rules! ident_node {
+    ($value:expr) => (
+        $crate::ast::KNode::Ident(
+            $crate::ast::Identifier {
+                token: $crate::lexer::token::Token { token_type: TokenType::Ident, literal: $value.to_string() },
+                value: $value.to_string(),
+            }
+        )
+    );
+}
+
 #[cfg(test)]
 mod tests {
-    use crate::object::*;
     use std::collections::HashMap;
+
+    use crate::{
+        object::*,
+        ast::*,
+        lexer::{
+            token_type::TokenType,
+            token::Token,
+        },
+    };
 
     #[test]
     fn test_kint() {
@@ -107,10 +170,11 @@ mod tests {
 
     #[test]
     fn test_kstr() {
-        let expected = Primitive::Str(KString { value: "derek".to_string() });
-        let actual = kstr!("derek");
+        let str = KString { value: "derek".to_string() };
+        let expected = Primitive::Str(str.clone());
 
-        assert_eq!(expected, actual);
+        assert_eq!(expected, kstr!("derek"));
+        assert_eq!(expected, kstr!(str.value));
     }
 
     #[test]
@@ -185,6 +249,54 @@ mod tests {
         ];
 
         assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn test_int_node() {
+        let int = IntegerLiteral {
+            value: 32,
+            token: Token { token_type: TokenType::Int, literal: "32".to_string() }
+        };
+        let expected = KNode::Int(int.clone());
+
+        assert_eq!(expected, int_node!(32));
+        assert_eq!(expected, int_node!(int.value));
+    }
+
+    #[test]
+    fn test_str_node() {
+        let str = StringLiteral {
+            value: "foobar".to_string(),
+            token: Token { token_type: TokenType::String, literal: "foobar".to_string() }
+        };
+        let expected = KNode::Str(str.clone());
+
+        assert_eq!(expected, str_node!("foobar"));
+        assert_eq!(expected, str_node!(str.value));
+    }
+
+    #[test]
+    fn test_bool_node() {
+        let bool = BooleanLiteral {
+            value: true,
+            token: Token { token_type: TokenType::True, literal: "true".to_string() }
+        };
+        let expected = KNode::Bool(bool.clone());
+
+        assert_eq!(expected, bool_node!(true));
+        assert_eq!(expected, bool_node!(bool.value));
+    }
+
+    #[test]
+    fn test_ident_node() {
+        let ident = Identifier {
+            value: "foobar".to_string(),
+            token: Token { token_type: TokenType::Ident, literal: "foobar".to_string() }
+        };
+        let expected = KNode::Ident(ident.clone());
+
+        assert_eq!(expected, ident_node!("foobar"));
+        assert_eq!(expected, ident_node!(ident.value));
     }
 }
 

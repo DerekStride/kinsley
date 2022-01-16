@@ -17,6 +17,7 @@ pub enum TokenType {
     Bang,
     Asterisk,
     Slash,
+    Dot,
 
     Lt,
     Gt,
@@ -46,6 +47,8 @@ pub enum TokenType {
     Return,
     Pub,
     Class,
+    Constructor,
+    Instance,
 }
 
 pub fn compute_keyword_map(map: &mut HashMap<&'static str, TokenType>) {
@@ -59,6 +62,8 @@ pub fn compute_keyword_map(map: &mut HashMap<&'static str, TokenType>) {
         ("return", TokenType::Return),
         ("pub", TokenType::Pub),
         ("class", TokenType::Class),
+        ("constructor", TokenType::Constructor),
+        ("@", TokenType::Instance),
     ];
 
     for t in keywords {
