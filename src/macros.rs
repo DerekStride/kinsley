@@ -1,6 +1,6 @@
 #[macro_export]
 macro_rules! kint {
-    ($value:literal) => (
+    ($value:expr) => (
         $crate::object::Primitive::Int(
             $crate::object::Integer {
                 value: $value
@@ -11,7 +11,7 @@ macro_rules! kint {
 
 #[macro_export]
 macro_rules! kstr {
-    ($value:literal) => (
+    ($value:expr) => (
         $crate::object::Primitive::Str(
             $crate::object::KString {
                 value: $value.to_string()
@@ -98,10 +98,11 @@ mod tests {
 
     #[test]
     fn test_kint() {
-        let expected = Primitive::Int(Integer { value: 32 });
-        let actual = kint!(32);
+        let int = Integer { value: 32 };
+        let expected = Primitive::Int(int.clone());
 
-        assert_eq!(expected, actual);
+        assert_eq!(expected, kint!(32));
+        assert_eq!(expected, kint!(int.value));
     }
 
     #[test]

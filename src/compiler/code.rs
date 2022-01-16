@@ -46,6 +46,15 @@ impl From<Opcode> for u8 {
     }
 }
 
+impl Opcode {
+    pub fn load(reg: u8, constant: u16) -> Operands {
+        let mut operands = [reg; 3];
+        BigEndian::write_u16(&mut operands[1..], constant);
+
+        operands
+    }
+}
+
 #[derive(Clone)]
 pub struct Definition {
     pub name: &'static str,
@@ -74,10 +83,12 @@ impl Code {
         Self { definitions }
     }
 
-    pub fn lookup(&self, op: u8) -> Result<&Definition> {
-        match self.definitions.get(&op) {
+    pub fn lookup<T: Into<u8>>(&self, op: T) -> Result<&Definition> {
+        let opcode = op.into();
+
+        match self.definitions.get(&opcode) {
             Some(x) => Ok(x),
-            None => Err(Error::new(format!("opcode {:x} undefined", op))),
+            None => Err(Error::new(format!("opcode {:x} undefined", opcode))),
         }
     }
 
@@ -211,6 +222,12 @@ mod tests {
         };
 
         Ok(())
+    }
+
+    #[test]
+    fn test_load() {
+        assert_eq!([0, 255, 254], Opcode::load(0, 65534));
+        assert_eq!([253, 1, 254], Opcode::load(253, 510));
     }
 
     #[test]
