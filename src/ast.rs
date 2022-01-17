@@ -16,7 +16,7 @@ pub enum KNode {
     Int(IntegerLiteral),
     Bool(BooleanLiteral),
     Str(StringLiteral),
-    Array(ArrayLiteral),
+    Vec(VecLiteral),
     Hash(HashLiteral),
     Pre(Prefix),
     In(Infix),
@@ -37,7 +37,7 @@ impl fmt::Display for KNode {
             KNode::Int(x) => write!(f, "{}", x),
             KNode::Bool(x) => write!(f, "{}", x),
             KNode::Str(x) => write!(f, "{}", x),
-            KNode::Array(x) => write!(f, "{}", x),
+            KNode::Vec(x) => write!(f, "{}", x),
             KNode::Hash(x) => write!(f, "{}", x),
             KNode::Pre(x) => write!(f, "{}", x),
             KNode::In(x) => write!(f, "{}", x),
@@ -104,13 +104,13 @@ impl fmt::Display for ReturnExpression {
 #[derive(PartialEq, Eq, Clone, Debug, Hash)]
 pub struct BlockExpression {
     pub token: Token,
-    pub stmts: Vec<KNode>,
+    pub exprs: Vec<KNode>,
 }
 
 impl fmt::Display for BlockExpression {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        for stmt in &self.stmts {
-            write!(f, "{}", stmt)?;
+        for expr in &self.exprs {
+            write!(f, "{}", expr)?;
         }
         Ok(())
     }
@@ -165,12 +165,12 @@ impl fmt::Display for StringLiteral {
 }
 
 #[derive(PartialEq, Eq, Clone, Debug, Hash)]
-pub struct ArrayLiteral {
+pub struct VecLiteral {
     pub token: Token,
     pub elements: Vec<KNode>,
 }
 
-impl fmt::Display for ArrayLiteral {
+impl fmt::Display for VecLiteral {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "[")?;
         write!(
@@ -259,17 +259,14 @@ impl fmt::Display for Infix {
 #[derive(PartialEq, Eq, Clone, Debug, Hash)]
 pub struct FnLiteral {
     pub token: Token,
-    pub name: Option<String>,
+    pub name: Identifier,
     pub params: Vec<Identifier>,
     pub body: BlockExpression,
 }
 
 impl fmt::Display for FnLiteral {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}(", self.token.literal)?;
-        if self.name.is_some() {
-            write!(f, "<{}>", self.name.as_ref().unwrap())?;
-        };
+        write!(f, "{} {}(", self.token.literal, self.name)?;
         write!(
             f,
             "{}",

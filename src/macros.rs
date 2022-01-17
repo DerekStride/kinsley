@@ -146,6 +146,33 @@ macro_rules! ident_node {
     );
 }
 
+#[macro_export]
+macro_rules! vec_node {
+    () => (
+        $crate::ast::KNode::Vec(
+            $crate::ast::VecLiteral {
+                token: $crate::lexer::token::Token { token_type: TokenType::RBracket, literal: "[".to_string() },
+                elements: std::vec::Vec::new()
+            }
+        )
+    );
+
+    ( $( $elem:expr ),*) => ({
+        let elements = vec![ $( $elem ), * ];
+
+        $crate::ast::KNode::Vec(
+            $crate::ast::VecLiteral {
+                token: $crate::lexer::token::Token { token_type: TokenType::RBracket, literal: "[".to_string() },
+                elements,
+            }
+        )
+    });
+
+    ( $( $elem:expr ),* ,) => ({
+        vec_node![ $( $elem ), * ]
+    });
+}
+
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
@@ -297,6 +324,45 @@ mod tests {
 
         assert_eq!(expected, ident_node!("foobar"));
         assert_eq!(expected, ident_node!(ident.value));
+    }
+
+    #[test]
+    fn test_empty_vec_node() {
+        let expected = KNode::Vec(
+            VecLiteral {
+                token: Token { token_type: TokenType::RBracket, literal: "[".to_string() },
+                elements: Vec::new(),
+            }
+        );
+
+        assert_eq!(expected, vec_node![]);
+    }
+
+    #[test]
+    fn test_vec_node() {
+        let expected = KNode::Vec(
+            VecLiteral {
+                token: Token { token_type: TokenType::RBracket, literal: "[".to_string() },
+                elements: vec![int_node!(1), int_node!(2), int_node!(3)],
+            }
+        );
+
+        let actual = vec_node![
+            int_node!(1),
+            int_node!(2),
+            int_node!(3),
+        ];
+
+        assert_eq!(expected, actual);
+        if let KNode::Vec(v) = actual {
+            assert_eq!(3, v.elements.len());
+
+            assert_eq!(int_node!(1), v.elements[0]);
+            assert_eq!(int_node!(2), v.elements[1]);
+            assert_eq!(int_node!(3), v.elements[2]);
+        } else {
+            panic!("Not a vector node: {}", actual);
+        };
     }
 }
 
