@@ -23,6 +23,10 @@ use self::Opcode::*;
 pub type Instruction = u32;
 pub type Operands = [u8; 3];
 
+pub type Register = u8;
+pub type Constant = u16;
+pub type JumpTarget = u32;
+
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Debug, Hash)]
 pub enum Opcode {
     Move, // R(A) = R(B)
@@ -47,7 +51,7 @@ impl From<Opcode> for u8 {
 }
 
 impl Opcode {
-    pub fn load(reg: u8, constant: u16) -> Operands {
+    pub fn load(reg: Register, constant: Constant) -> Operands {
         let mut operands = [reg; 3];
         BigEndian::write_u16(&mut operands[1..], constant);
 

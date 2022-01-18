@@ -4,16 +4,18 @@ use crate::compiler::{
 };
 
 pub struct CompilationScope {
-    instructions: Vec<Instruction>,
+    pub instructions: Vec<Instruction>,
+    registers: Register,
 
-    last_emitted_instruction: Option<EmittedInstruction>,
-    prev_emitted_instruction: Option<EmittedInstruction>,
+    pub last_emitted_instruction: Option<EmittedInstruction>,
+    pub prev_emitted_instruction: Option<EmittedInstruction>,
 }
 
 impl CompilationScope {
     pub fn new() -> Self {
         Self {
             instructions: Vec::new(),
+            registers: 0,
 
             last_emitted_instruction: None,
             prev_emitted_instruction: None,
@@ -24,6 +26,13 @@ impl CompilationScope {
         let ins = code.make(opcode, &operands);
         self.set_last_instruction(opcode, self.instructions.len());
         self.instructions.push(ins);
+    }
+
+    pub fn next_register(&mut self) -> Register {
+        let next = self.registers;
+        self.registers += 1;
+
+        next
     }
 
     fn set_last_instruction(&mut self, opcode: Opcode, position: usize) {
