@@ -6,6 +6,7 @@ use crate::{
     object::*,
     compiler::{
         code::*,
+        symbol_table::SymbolTable,
         code::Instruction::*,
         compilation_scope::CompilationScope,
     },
@@ -13,6 +14,7 @@ use crate::{
 
 #[macro_use]
 pub mod code;
+pub mod symbol_table;
 mod compilation_scope;
 mod emitted_instruction;
 
@@ -24,6 +26,7 @@ pub struct Bytecode {
 pub struct Compiler {
     constants: Vec<Primitive>,
     scopes: Vec<CompilationScope>,
+    symbols: SymbolTable,
 }
 
 impl Compiler {
@@ -31,6 +34,7 @@ impl Compiler {
         Self {
             constants: Vec::new(),
             scopes: vec![CompilationScope::new()],
+            symbols: SymbolTable::new(),
         }
     }
 
@@ -44,6 +48,10 @@ impl Compiler {
             instructions,
             constants: self.constants.clone(),
         }
+    }
+
+    pub fn symbol_table(&self) -> SymbolTable {
+        self.symbols.clone()
     }
 
     pub fn compile(&mut self, node: KNode) -> Result<()> {
@@ -110,12 +118,12 @@ impl Compiler {
     }
 
     fn enter_scope(&mut self, scope: CompilationScope) {
-        // self.symbols = SymbolTable::enclose(self.symbols.clone());
+        self.symbols = SymbolTable::enclose(self.symbols.clone());
         self.scopes.push(scope);
     }
 
     fn leave_scope(&mut self) -> CompilationScope {
-        // self.symbols = self.symbols.outer().unwrap();
+        self.symbols = self.symbols.outer().unwrap();
         self.scopes.pop().unwrap()
     }
 
@@ -182,7 +190,7 @@ mod tests {
         assert_eq!(
             expected,
             actual,
-            "\n\nExpected:\n{}\n\nActual:\n{}\n",
+            "\n\nInstructions:\nwant:\n{}\ngot:\n{}\n",
             expected
                 .iter()
                 .map(ToString::to_string)
@@ -218,6 +226,36 @@ mod tests {
     fn test_compiler() {
         let mut c = Compiler::new();
         assert!(c.compile(KNode::Prog(Program { exprs: Vec::new() })).is_ok());
+    }
+
+    #[test]
+    fn test_compiler_scopes() {
+        let mut compiler = Compiler::new();
+        assert_eq!(1, compiler.scopes.len());
+
+        let global_symbol_table = compiler.symbol_table();
+        compiler.emit(mul!(0, 1, 2));
+
+        compiler.enter_scope(CompilationScope::new());
+        assert_eq!(2, compiler.scopes.len());
+
+        compiler.emit(sub!(3, 4, 5));
+
+        let last = compiler.scopes.last().unwrap().last_emitted_instruction.as_ref().unwrap();
+
+        assert_eq!(sub!(3, 4, 5), last.instruction);
+        assert_ne!(compiler.symbol_table(), global_symbol_table);
+
+        compiler.leave_scope();
+        assert_eq!(1, compiler.scopes.len());
+        assert_eq!(compiler.symbol_table(), global_symbol_table);
+
+        compiler.emit(add!(6, 7, 8));
+        let last = compiler.scopes.last().unwrap().last_emitted_instruction.as_ref().unwrap();
+        let prev = compiler.scopes.last().unwrap().prev_emitted_instruction.as_ref().unwrap();
+
+        assert_eq!(add!(6, 7, 8), last.instruction);
+        assert_eq!(mul!(0, 1, 2), prev.instruction);
     }
 
     #[test]
