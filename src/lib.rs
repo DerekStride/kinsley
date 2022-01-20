@@ -5,6 +5,7 @@ pub mod parser;
 pub mod error;
 pub mod compiler;
 pub mod object;
+pub mod repl;
 
 #[cfg(test)]
 mod test_utils;

@@ -23,6 +23,34 @@ pub struct Bytecode {
     constants: Vec<Primitive>,
 }
 
+impl Bytecode {
+    pub fn format_instructions(ins: &Vec<Instruction>) -> String {
+        ins
+            .iter()
+            .map(ToString::to_string)
+            .collect::<Vec<String>>()
+            .join("\n")
+    }
+
+    pub fn format_constants(con: &Vec<Primitive>) -> String {
+        con
+            .iter()
+            .map(ToString::to_string)
+            .collect::<Vec<String>>()
+            .join("\n")
+    }
+}
+impl fmt::Display for Bytecode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "Bytecode:\n\nInstructions:\n{}\n\nConstants:\n{}\n",
+            Bytecode::format_instructions(&self.instructions),
+            Bytecode::format_constants(&self.constants),
+        )
+    }
+}
+
 pub struct Compiler {
     constants: Vec<Primitive>,
     scopes: Vec<CompilationScope>,
@@ -35,6 +63,14 @@ impl Compiler {
             constants: Vec::new(),
             scopes: vec![CompilationScope::new()],
             symbols: SymbolTable::new(),
+        }
+    }
+
+    pub fn with_state(symbols: SymbolTable, constants: Vec<Primitive>) -> Self {
+        Self {
+            constants,
+            symbols,
+            scopes: vec![CompilationScope::new()],
         }
     }
 
@@ -191,16 +227,8 @@ mod tests {
             expected,
             actual,
             "\n\nInstructions:\nwant:\n{}\ngot:\n{}\n",
-            expected
-                .iter()
-                .map(ToString::to_string)
-                .collect::<Vec<String>>()
-                .join("\n"),
-            actual
-                .iter()
-                .map(ToString::to_string)
-                .collect::<Vec<String>>()
-                .join("\n")
+            Bytecode::format_instructions(&expected),
+            Bytecode::format_instructions(&actual),
         );
     }
 
@@ -209,16 +237,8 @@ mod tests {
             expected,
             actual,
             "\n\nConstants:\nwant:\n{}\ngot:\n{}\n",
-            expected
-                .iter()
-                .map(ToString::to_string)
-                .collect::<Vec<String>>()
-                .join("\n"),
-            actual
-                .iter()
-                .map(ToString::to_string)
-                .collect::<Vec<String>>()
-                .join("\n"),
+            Bytecode::format_constants(&expected),
+            Bytecode::format_constants(&actual),
         );
     }
 
