@@ -22,9 +22,8 @@ impl CompilationScope {
         }
     }
 
-    pub fn emit(&mut self, code: &Code, opcode: Opcode, operands: Operands) {
-        let ins = code.make(opcode, &operands);
-        self.set_last_instruction(opcode, self.instructions.len());
+    pub fn emit(&mut self, ins: Instruction) {
+        self.set_last_instruction(ins, self.instructions.len());
         self.instructions.push(ins);
     }
 
@@ -35,8 +34,18 @@ impl CompilationScope {
         next
     }
 
-    fn set_last_instruction(&mut self, opcode: Opcode, position: usize) {
+    pub fn last_dest_register(&self) -> Register {
+        for ins in self.instructions.iter().rev() {
+            if let Some(reg) = ins.last_dest_register() {
+                return reg;
+            };
+        };
+
+        self.registers
+    }
+
+    fn set_last_instruction(&mut self, instruction: Instruction, position: usize) {
         std::mem::swap(&mut self.prev_emitted_instruction, &mut self.last_emitted_instruction);
-        self.last_emitted_instruction = Some(EmittedInstruction { opcode, position });
+        self.last_emitted_instruction = Some(EmittedInstruction { instruction, position });
     }
 }

@@ -6,11 +6,12 @@ use crate::{
     object::*,
     compiler::{
         code::*,
-        code::Opcode::*,
+        code::Instruction::*,
         compilation_scope::CompilationScope,
     },
 };
 
+#[macro_use]
 pub mod code;
 mod compilation_scope;
 mod emitted_instruction;
@@ -23,8 +24,6 @@ pub struct Bytecode {
 pub struct Compiler {
     constants: Vec<Primitive>,
     scopes: Vec<CompilationScope>,
-
-    code: Code,
 }
 
 impl Compiler {
@@ -32,7 +31,6 @@ impl Compiler {
         Self {
             constants: Vec::new(),
             scopes: vec![CompilationScope::new()],
-            code: Code::new(),
         }
     }
 
@@ -56,22 +54,35 @@ impl Compiler {
             KNode::Int(int) => {
                 let literal = kint!(int.value);
                 self.constants.push(literal);
-                let reg = self.next_register();
-                self.emit(Load, Opcode::load(reg, (self.constants.len() - 1) as u16));
+                let dest = self.next_register();
+
+                self.emit(load!(dest, (self.constants.len() - 1) as u16));
             },
             KNode::In(infix) => {
                 self.compile(*infix.left)?;
+                let a = self.last_dest_reg();
+
                 self.compile(*infix.right)?;
-                let b = 255;
-                let c = 255;
-                let reg = self.next_register();
+                let b = self.last_dest_reg();
+
+                let dest = self.next_register();
 
                 match infix.operator.as_str() {
-                    "+" => self.emit(Add, [reg, b, c]),
-                    "-" => self.emit(Sub, [reg, b, c]),
-                    "*" => self.emit(Mul, [reg, b, c]),
-                    "/" => self.emit(Div, [reg, b, c]),
+                    "+" => self.emit(Add { dest, a, b }),
+                    "-" => self.emit(Sub { dest, a, b }),
+                    "*" => self.emit(Mul { dest, a, b }),
+                    "/" => self.emit(Div { dest, a, b }),
                     _ => return Err(Error::new(format!("unknown operator: {}", infix.operator))),
+                };
+            },
+            KNode::Pre(prefix) => {
+                self.compile(*prefix.right)?;
+                let a = self.next_register();
+                let b = self.last_dest_reg();
+
+                match prefix.operator.as_str() {
+                    "-" => self.emit(neg!(a, b)),
+                    _ => return Err(Error::new(format!("unknown operator: {}", prefix.operator))),
                 };
             },
             x => return Err(Error::new(format!("Compilation not implemented for node: {:?}", x))),
@@ -80,9 +91,9 @@ impl Compiler {
         Ok(())
     }
 
-    fn emit(&mut self, op: Opcode, operands: Operands) {
+    fn emit(&mut self, ins: Instruction) {
         if let Some(scope) = self.scopes.last_mut() {
-            scope.emit(&self.code, op, operands);
+            scope.emit(ins);
         };
     }
 
@@ -92,6 +103,10 @@ impl Compiler {
         } else {
             unreachable!();
         }
+    }
+
+    fn last_dest_reg(&mut self) -> Register {
+        self.current_scope().last_dest_register()
     }
 
     fn enter_scope(&mut self, scope: CompilationScope) {
@@ -119,9 +134,9 @@ impl fmt::Display for Compiler {
         write!(
             f,
             "Compiler {{\n\tinstructions:\n\t\t{}\n\tconstants:\n\t\t{}\n\tprev_instruction:\n\t\t{}\n\tlast_instruction:\n\t\t{}\n}}",
-            self.code.format(self.current_instructions())
-                .lines()
-                .map(|l| l.to_string())
+            self.current_instructions()
+                .iter()
+                .map(ToString::to_string)
                 .collect::<Vec<String>>()
                 .join("\n\t\t"),
             self.constants
@@ -164,8 +179,21 @@ mod tests {
     }
 
     fn test_instructions(expected: Vec<Instruction>, actual: Vec<Instruction>) {
-        let code = Code::new();
-        assert_eq!(expected, actual, "\n\nInstructions:\nwant:\n{}\ngot:\n{}\n", code.format(&expected), code.format(&actual));
+        assert_eq!(
+            expected,
+            actual,
+            "\n\nExpected:\n{}\n\nActual:\n{}\n",
+            expected
+                .iter()
+                .map(ToString::to_string)
+                .collect::<Vec<String>>()
+                .join("\n"),
+            actual
+                .iter()
+                .map(ToString::to_string)
+                .collect::<Vec<String>>()
+                .join("\n")
+        );
     }
 
     fn test_constants(expected: Vec<Primitive>, actual: Vec<Primitive>) {
@@ -194,14 +222,13 @@ mod tests {
 
     #[test]
     fn test_int_expr() -> Result<()> {
-        let code = Code::new();
         let tests = vec![
             TestCase {
                 input: "5; 2;".to_string(),
                 expected_constants: vec![kint!(5), kint!(2)],
                 expected_instructions: vec![
-                    code.make(Load, &Opcode::load(0, 0)),
-                    code.make(Load, &Opcode::load(1, 1)),
+                    load!(0, 0),
+                    load!(1, 1),
                 ],
             },
         ];
@@ -211,57 +238,52 @@ mod tests {
 
     #[test]
     fn test_integer_arithmetic() -> Result<()> {
-        let code = Code::new();
         let tests = vec![
             TestCase {
                 input: "1 + 2;".to_string(),
                 expected_constants: vec![kint!(1), kint!(2)],
                 expected_instructions: vec![
-                    code.make(Load, &Opcode::load(0, 0)),
-                    code.make(Load, &Opcode::load(1, 1)),
-                    code.make(Add, &[2, 0, 1]),
+                    load!(0, 0),
+                    load!(1, 1),
+                    add!(2, 0, 1),
                 ],
             },
             TestCase {
                 input: "1 - 2;".to_string(),
                 expected_constants: vec![kint!(1), kint!(2)],
                 expected_instructions: vec![
-                    code.make(Load, &Opcode::load(0, 0)),
-                    code.make(Load, &Opcode::load(1, 1)),
-                    code.make(Sub, &[2, 0, 1]),
+                    load!(0, 0),
+                    load!(1, 1),
+                    sub!(2, 0, 1),
                 ],
             },
             TestCase {
                 input: "1 * 2;".to_string(),
                 expected_constants: vec![kint!(1), kint!(2)],
                 expected_instructions: vec![
-                    code.make(Load, &Opcode::load(0, 0)),
-                    code.make(Load, &Opcode::load(1, 1)),
-                    code.make(Mul, &[2, 0, 1]),
+                    load!(0, 0),
+                    load!(1, 1),
+                    mul!(2, 0, 1),
                 ],
             },
             TestCase {
                 input: "1 / 2;".to_string(),
                 expected_constants: vec![kint!(1), kint!(2)],
                 expected_instructions: vec![
-                    code.make(Load, &Opcode::load(0, 0)),
-                    code.make(Load, &Opcode::load(1, 1)),
-                    code.make(Div, &[2, 0, 1]),
+                    load!(0, 0),
+                    load!(1, 1),
+                    div!(2, 0, 1),
                 ],
             },
             TestCase {
                 input: "-1 - -2;".to_string(),
                 expected_constants: vec![kint!(1), kint!(2)],
                 expected_instructions: vec![
-                    code.make(Load, &Opcode::load(0, 0)),
-                    code.make(Load, &Opcode::load(1, 1)),
-                    code.make(Sub, &[2, 0, 1]),
-                    // code.make(&OP_CONSTANT, &vec![0]),
-                    // code.make(&OP_MINUS, &vec![]),
-                    // code.make(&OP_CONSTANT, &vec![1]),
-                    // code.make(&OP_MINUS, &vec![]),
-                    // code.make(&OP_SUB, &vec![]),
-                    // code.make(&OP_POP, &vec![]),
+                    load!(0, 0),
+                    neg!(1, 0),
+                    load!(2, 1),
+                    neg!(3, 2),
+                    sub!(4, 1, 3),
                 ],
             },
         ];
