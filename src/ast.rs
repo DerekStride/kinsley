@@ -7,7 +7,7 @@ use std::{
 use crate::lexer::token::Token;
 
 #[derive(PartialEq, Eq, Clone, Debug, Hash)]
-pub enum KNode {
+pub enum Ast {
     Prog(Program),
     Let(LetExpression),
     Return(ReturnExpression),
@@ -26,25 +26,25 @@ pub enum KNode {
     Index(IndexOperation),
 }
 
-impl fmt::Display for KNode {
+impl fmt::Display for Ast {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            KNode::Prog(x) => write!(f, "{}", x),
-            KNode::Let(x) => write!(f, "{}", x),
-            KNode::Return(x) => write!(f, "{}", x),
-            KNode::Block(x) => write!(f, "{}", x),
-            KNode::Ident(x) => write!(f, "{}", x),
-            KNode::Int(x) => write!(f, "{}", x),
-            KNode::Bool(x) => write!(f, "{}", x),
-            KNode::Str(x) => write!(f, "{}", x),
-            KNode::Vec(x) => write!(f, "{}", x),
-            KNode::Hash(x) => write!(f, "{}", x),
-            KNode::Pre(x) => write!(f, "{}", x),
-            KNode::In(x) => write!(f, "{}", x),
-            KNode::If(x) => write!(f, "{}", x),
-            KNode::Fn(x) => write!(f, "{}", x),
-            KNode::Call(x) => write!(f, "{}", x),
-            KNode::Index(x) => write!(f, "{}", x),
+            Ast::Prog(x) => write!(f, "{}", x),
+            Ast::Let(x) => write!(f, "{}", x),
+            Ast::Return(x) => write!(f, "{}", x),
+            Ast::Block(x) => write!(f, "{}", x),
+            Ast::Ident(x) => write!(f, "{}", x),
+            Ast::Int(x) => write!(f, "{}", x),
+            Ast::Bool(x) => write!(f, "{}", x),
+            Ast::Str(x) => write!(f, "{}", x),
+            Ast::Vec(x) => write!(f, "{}", x),
+            Ast::Hash(x) => write!(f, "{}", x),
+            Ast::Pre(x) => write!(f, "{}", x),
+            Ast::In(x) => write!(f, "{}", x),
+            Ast::If(x) => write!(f, "{}", x),
+            Ast::Fn(x) => write!(f, "{}", x),
+            Ast::Call(x) => write!(f, "{}", x),
+            Ast::Index(x) => write!(f, "{}", x),
         }
     }
 }
@@ -52,7 +52,7 @@ impl fmt::Display for KNode {
 
 #[derive(PartialEq, Eq, Clone, Debug, Hash)]
 pub struct Program {
-    pub exprs: Vec<KNode>,
+    pub exprs: Vec<Ast>,
 }
 
 impl Program {
@@ -80,7 +80,7 @@ impl fmt::Display for Program {
 pub struct LetExpression {
     pub token: Token,
     pub name: Identifier,
-    pub value: Box<KNode>,
+    pub value: Box<Ast>,
 }
 
 impl fmt::Display for LetExpression {
@@ -92,7 +92,7 @@ impl fmt::Display for LetExpression {
 #[derive(PartialEq, Eq, Clone, Debug, Hash)]
 pub struct ReturnExpression {
     pub token: Token,
-    pub retval: Box<KNode>,
+    pub retval: Box<Ast>,
 }
 
 impl fmt::Display for ReturnExpression {
@@ -104,7 +104,7 @@ impl fmt::Display for ReturnExpression {
 #[derive(PartialEq, Eq, Clone, Debug, Hash)]
 pub struct BlockExpression {
     pub token: Token,
-    pub exprs: Vec<KNode>,
+    pub exprs: Vec<Ast>,
 }
 
 impl fmt::Display for BlockExpression {
@@ -167,7 +167,7 @@ impl fmt::Display for StringLiteral {
 #[derive(PartialEq, Eq, Clone, Debug, Hash)]
 pub struct VecLiteral {
     pub token: Token,
-    pub elements: Vec<KNode>,
+    pub elements: Vec<Ast>,
 }
 
 impl fmt::Display for VecLiteral {
@@ -188,7 +188,7 @@ impl fmt::Display for VecLiteral {
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub struct HashLiteral {
     pub token: Token,
-    pub pairs: HashMap<KNode, KNode>,
+    pub pairs: HashMap<Ast, Ast>,
 }
 
 impl Hash for HashLiteral {
@@ -214,7 +214,7 @@ impl fmt::Display for HashLiteral {
 #[derive(PartialEq, Eq, Clone, Debug, Hash)]
 pub struct IfExpression {
     pub token: Token,
-    pub condition: Box<KNode>,
+    pub condition: Box<Ast>,
     pub consequence: BlockExpression,
     pub alternative: Option<BlockExpression>,
 }
@@ -233,7 +233,7 @@ impl fmt::Display for IfExpression {
 pub struct Prefix {
     pub token: Token,
     pub operator: String,
-    pub right: Box<KNode>,
+    pub right: Box<Ast>,
 }
 
 impl fmt::Display for Prefix {
@@ -245,9 +245,9 @@ impl fmt::Display for Prefix {
 #[derive(PartialEq, Eq, Clone, Debug, Hash)]
 pub struct Infix {
     pub token: Token,
-    pub left: Box<KNode>,
+    pub left: Box<Ast>,
     pub operator: String,
-    pub right: Box<KNode>,
+    pub right: Box<Ast>,
 }
 
 impl fmt::Display for Infix {
@@ -279,8 +279,8 @@ impl fmt::Display for FnLiteral {
 #[derive(PartialEq, Eq, Clone, Debug, Hash)]
 pub struct FnCall {
     pub token: Token,
-    pub function: Box<KNode>,
-    pub args: Vec<KNode>,
+    pub function: Box<Ast>,
+    pub args: Vec<Ast>,
 }
 
 impl fmt::Display for FnCall {
@@ -297,8 +297,8 @@ impl fmt::Display for FnCall {
 #[derive(PartialEq, Eq, Clone, Debug, Hash)]
 pub struct IndexOperation {
     pub token: Token,
-    pub left: Box<KNode>,
-    pub index: Box<KNode>,
+    pub left: Box<Ast>,
+    pub index: Box<Ast>,
 }
 
 impl fmt::Display for IndexOperation {

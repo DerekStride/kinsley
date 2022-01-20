@@ -16,8 +16,8 @@ pub struct Parser<I: Iterator<Item = Token>> {
     l: Peekable<I>,
     tok: Token,
     errors: Vec<String>,
-    prefix_parse_fns: HashMap<TokenType, fn(&mut Self) -> Option<KNode>>,
-    infix_parse_fns: HashMap<TokenType, fn(&mut Self, KNode) -> Option<KNode>>,
+    prefix_parse_fns: HashMap<TokenType, fn(&mut Self) -> Option<Ast>>,
+    infix_parse_fns: HashMap<TokenType, fn(&mut Self, Ast) -> Option<Ast>>,
     precedences: HashMap<TokenType, Precedence>,
 }
 
@@ -86,7 +86,7 @@ impl<I: Iterator<Item = Token>> Parser<I> {
         self.errors.clone()
     }
 
-    fn parse_expression_statement(&mut self) -> Option<KNode> {
+    fn parse_expression_statement(&mut self) -> Option<Ast> {
         let expr = self.parse_expression(Precedence::Lowest)?;
 
         self.expect_peek(TokenType::SemiColon)?;
@@ -94,7 +94,7 @@ impl<I: Iterator<Item = Token>> Parser<I> {
         Some(expr)
     }
 
-    fn parse_expression(&mut self, precedence: Precedence) -> Option<KNode> {
+    fn parse_expression(&mut self, precedence: Precedence) -> Option<Ast> {
         let mut left = if let Some(prefix) = self.prefix_parse_fns.get(&self.tok.token_type) {
             prefix(self)?
         } else {
@@ -140,7 +140,7 @@ impl<I: Iterator<Item = Token>> Parser<I> {
         )
     }
 
-    fn parse_return_expression(&mut self) -> Option<KNode> {
+    fn parse_return_expression(&mut self) -> Option<Ast> {
         let token = self.tok.clone();
 
         self.ignore_next()?;
@@ -148,7 +148,7 @@ impl<I: Iterator<Item = Token>> Parser<I> {
         let retval = self.parse_expression(Precedence::Lowest)?;
 
         Some(
-            KNode::Return(
+            Ast::Return(
                 ReturnExpression {
                     token,
                     retval: Box::new(retval),
@@ -157,7 +157,7 @@ impl<I: Iterator<Item = Token>> Parser<I> {
         )
     }
 
-    fn parse_let_expression(&mut self) -> Option<KNode> {
+    fn parse_let_expression(&mut self) -> Option<Ast> {
         let token = self.tok.clone();
 
         self.expect_peek(TokenType::Ident)?;
@@ -173,7 +173,7 @@ impl<I: Iterator<Item = Token>> Parser<I> {
         let value = self.parse_expression(Precedence::Lowest)?;
 
         Some(
-            KNode::Let(
+            Ast::Let(
                 LetExpression {
                     token,
                     name,
@@ -184,9 +184,9 @@ impl<I: Iterator<Item = Token>> Parser<I> {
     }
 
 
-    fn parse_identifier(&mut self) -> Option<KNode> {
+    fn parse_identifier(&mut self) -> Option<Ast> {
         Some(
-            KNode::Ident(
+            Ast::Ident(
                 Identifier {
                     token: self.tok.clone(),
                     value: self.tok.literal.clone(),
@@ -195,7 +195,7 @@ impl<I: Iterator<Item = Token>> Parser<I> {
         )
     }
 
-    fn parse_integer_literal(&mut self) -> Option<KNode> {
+    fn parse_integer_literal(&mut self) -> Option<Ast> {
         let lit = match self.tok.literal.parse::<i128>() {
             Ok(x) => x,
             Err(_) => {
@@ -205,7 +205,7 @@ impl<I: Iterator<Item = Token>> Parser<I> {
         };
 
         Some(
-            KNode::Int(
+            Ast::Int(
                 IntegerLiteral {
                     token: self.tok.clone(),
                     value: lit,
@@ -214,9 +214,9 @@ impl<I: Iterator<Item = Token>> Parser<I> {
         )
     }
 
-    fn parse_boolean(&mut self) -> Option<KNode> {
+    fn parse_boolean(&mut self) -> Option<Ast> {
         Some(
-            KNode::Bool(
+            Ast::Bool(
                 BooleanLiteral {
                     token: self.tok.clone(),
                     value: self.curr_token_is(TokenType::True),
@@ -225,7 +225,7 @@ impl<I: Iterator<Item = Token>> Parser<I> {
         )
     }
 
-    fn parse_grouped_expression(&mut self) -> Option<KNode> {
+    fn parse_grouped_expression(&mut self) -> Option<Ast> {
         self.ignore_next()?;
 
         let exp = self.parse_expression(Precedence::Lowest);
@@ -235,7 +235,7 @@ impl<I: Iterator<Item = Token>> Parser<I> {
         exp
     }
 
-    fn parse_if_expression(&mut self) -> Option<KNode> {
+    fn parse_if_expression(&mut self) -> Option<Ast> {
         let token = self.tok.clone();
 
         self.expect_peek(TokenType::LParen)?;
@@ -257,7 +257,7 @@ impl<I: Iterator<Item = Token>> Parser<I> {
         }
 
         Some(
-            KNode::If(
+            Ast::If(
                 IfExpression {
                     token,
                     condition: Box::new(condition),
@@ -291,7 +291,7 @@ impl<I: Iterator<Item = Token>> Parser<I> {
         }
     }
 
-    fn parse_function_expression(&mut self) -> Option<KNode> {
+    fn parse_function_expression(&mut self) -> Option<Ast> {
         let token = self.tok.clone();
 
         self.expect_peek(TokenType::Ident)?;
@@ -310,7 +310,7 @@ impl<I: Iterator<Item = Token>> Parser<I> {
         let body = self.parse_block_expression()?;
 
         Some(
-            KNode::Fn(
+            Ast::Fn(
                 FnLiteral {
                     name,
                     token,
@@ -321,9 +321,9 @@ impl<I: Iterator<Item = Token>> Parser<I> {
         )
     }
 
-    fn parse_string_expression(&mut self) -> Option<KNode> {
+    fn parse_string_expression(&mut self) -> Option<Ast> {
         Some(
-            KNode::Str(
+            Ast::Str(
                 StringLiteral {
                     token: self.tok.clone(),
                     value: self.tok.literal.clone(),
@@ -332,12 +332,12 @@ impl<I: Iterator<Item = Token>> Parser<I> {
         )
     }
 
-    fn parse_array_expression(&mut self) -> Option<KNode> {
+    fn parse_array_expression(&mut self) -> Option<Ast> {
         let token = self.tok.clone();
         let elements = self.parse_expression_list(TokenType::RBracket);
 
         Some(
-            KNode::Vec(
+            Ast::Vec(
                 VecLiteral {
                     token,
                     elements,
@@ -346,7 +346,7 @@ impl<I: Iterator<Item = Token>> Parser<I> {
         )
     }
 
-    fn parse_hash_expression(&mut self) -> Option<KNode> {
+    fn parse_hash_expression(&mut self) -> Option<Ast> {
         let token = self.tok.clone();
         let mut pairs = HashMap::new();
         while !self.peek_token_is(TokenType::RBrace) {
@@ -371,7 +371,7 @@ impl<I: Iterator<Item = Token>> Parser<I> {
         self.expect_peek(TokenType::RBrace)?;
 
         Some(
-            KNode::Hash(
+            Ast::Hash(
                 HashLiteral {
                     token,
                     pairs,
@@ -380,7 +380,7 @@ impl<I: Iterator<Item = Token>> Parser<I> {
         )
     }
 
-    fn parse_prefix_expression(&mut self) -> Option<KNode> {
+    fn parse_prefix_expression(&mut self) -> Option<Ast> {
         let token = self.tok.clone();
         let operator = token.literal.clone();
 
@@ -389,7 +389,7 @@ impl<I: Iterator<Item = Token>> Parser<I> {
         let right = self.parse_expression(Precedence::Prefix)?;
 
         Some(
-            KNode::Pre(
+            Ast::Pre(
                 Prefix {
                     token,
                     operator,
@@ -399,7 +399,7 @@ impl<I: Iterator<Item = Token>> Parser<I> {
         )
     }
 
-    fn parse_infix_expression(&mut self, left: KNode) -> Option<KNode> {
+    fn parse_infix_expression(&mut self, left: Ast) -> Option<Ast> {
         let token = self.tok.clone();
         let operator = token.literal.clone();
         let precedence = self.curr_precedence();
@@ -409,7 +409,7 @@ impl<I: Iterator<Item = Token>> Parser<I> {
         let right = self.parse_expression(precedence)?;
 
         Some(
-            KNode::In(
+            Ast::In(
                 Infix {
                     token,
                     left: Box::new(left),
@@ -420,7 +420,7 @@ impl<I: Iterator<Item = Token>> Parser<I> {
         )
     }
 
-    fn parse_expression_list(&mut self, end: TokenType) -> Vec<KNode> {
+    fn parse_expression_list(&mut self, end: TokenType) -> Vec<Ast> {
         let mut args = Vec::new();
 
         if self.peek_token_is(end) {
@@ -452,12 +452,12 @@ impl<I: Iterator<Item = Token>> Parser<I> {
         }
     }
 
-    fn parse_call_expression(&mut self, function: KNode) -> Option<KNode> {
+    fn parse_call_expression(&mut self, function: Ast) -> Option<Ast> {
         let token = self.tok.clone();
         let args = self.parse_expression_list(TokenType::RParen);
 
         Some(
-            KNode::Call(
+            Ast::Call(
                 FnCall {
                     token,
                     function: Box::new(function),
@@ -467,7 +467,7 @@ impl<I: Iterator<Item = Token>> Parser<I> {
         )
     }
 
-    fn parse_index_expression(&mut self, left: KNode) -> Option<KNode> {
+    fn parse_index_expression(&mut self, left: Ast) -> Option<Ast> {
         let token = self.tok.clone();
         self.ignore_next()?;
 
@@ -476,7 +476,7 @@ impl<I: Iterator<Item = Token>> Parser<I> {
         self.expect_peek(TokenType::RBracket)?;
 
         Some(
-            KNode::Index(
+            Ast::Index(
                 IndexOperation {
                     token,
                     left: Box::new(left),
@@ -550,11 +550,11 @@ impl<I: Iterator<Item = Token>> Parser<I> {
         }
     }
 
-    fn register_prefix(&mut self, tt: TokenType, func: fn(&mut Self) -> Option<KNode>) {
+    fn register_prefix(&mut self, tt: TokenType, func: fn(&mut Self) -> Option<Ast>) {
         self.prefix_parse_fns.insert(tt, func);
     }
 
-    fn register_infix(&mut self, tt: TokenType, func: fn(&mut Self, KNode) -> Option<KNode>) {
+    fn register_infix(&mut self, tt: TokenType, func: fn(&mut Self, Ast) -> Option<Ast>) {
         self.infix_parse_fns.insert(tt, func);
     }
 }
@@ -564,9 +564,9 @@ mod tests {
     use super::*;
     use crate::{test_utils::*, lexer::Lexer};
 
-    fn test_let_expression(node: &KNode, expected_ident: &String, expected_expr: &KNode) {
+    fn test_let_expression(node: &Ast, expected_ident: &String, expected_expr: &Ast) {
         let let_expr = match node {
-            KNode::Let(l) => l,
+            Ast::Let(l) => l,
             _ => panic!("Expected let statement. Got {:?}", node),
         };
 
@@ -574,8 +574,8 @@ mod tests {
         assert_eq!(*expected_expr, *let_expr.value);
     }
 
-    fn test_infix_expression(actual: &KNode, left: &KNode, operator: String, right: &KNode) {
-        if let KNode::In(x) = actual {
+    fn test_infix_expression(actual: &Ast, left: &Ast, operator: String, right: &Ast) {
+        if let Ast::In(x) = actual {
             assert_eq!(*left, *x.left);
             assert_eq!(operator, x.operator);
             assert_eq!(*right, *x.right);
@@ -664,10 +664,10 @@ mod tests {
         assert_eq!(3, program.exprs.len());
 
         for expr in program.exprs {
-            if let KNode::Return(ret) = expr {
+            if let Ast::Return(ret) = expr {
                 assert_eq!("return", ret.token.literal);
             } else {
-                panic!("expr {:?} was not a KNode::Return.", expr);
+                panic!("expr {:?} was not a Ast::Return.", expr);
             }
         }
 
@@ -731,7 +731,7 @@ mod tests {
             let program = parse(tt.0)?;
             assert_eq!(1, program.exprs.len());
 
-            if let KNode::Pre(ref expr) = program.exprs[0] {
+            if let Ast::Pre(ref expr) = program.exprs[0] {
                 assert_eq!(tt.1, expr.operator);
                 assert_eq!(tt.2, *expr.right);
             } else {
@@ -815,7 +815,7 @@ mod tests {
         let program = parse(input)?;
         assert_eq!(1, program.exprs.len());
 
-        let if_expr = if let KNode::If(x) = program.exprs.get(0).unwrap() {
+        let if_expr = if let Ast::If(x) = program.exprs.get(0).unwrap() {
             x
         } else {
             panic!("Program statement was not an if expression.");
@@ -842,7 +842,7 @@ mod tests {
         let program = parse(input)?;
         assert_eq!(1, program.exprs.len());
 
-        let if_expr = if let KNode::If(x) = program.exprs.get(0).unwrap() {
+        let if_expr = if let Ast::If(x) = program.exprs.get(0).unwrap() {
             x
         } else {
             panic!("Program statement was not an if expression.");
@@ -872,7 +872,7 @@ mod tests {
         let program = parse(input)?;
         assert_eq!(1, program.exprs.len());
 
-        let fn_expr = if let KNode::Fn(ref f) = program.exprs[0] {
+        let fn_expr = if let Ast::Fn(ref f) = program.exprs[0] {
             f
         } else {
             panic!("Program statement was not a Function expression.");
@@ -880,8 +880,8 @@ mod tests {
 
         assert_eq!(2, fn_expr.params.len());
 
-        assert_eq!(ident_node!("x"), KNode::Ident(fn_expr.params[0].clone()));
-        assert_eq!(ident_node!("y"), KNode::Ident(fn_expr.params[1].clone()));
+        assert_eq!(ident_node!("x"), Ast::Ident(fn_expr.params[0].clone()));
+        assert_eq!(ident_node!("y"), Ast::Ident(fn_expr.params[1].clone()));
 
         assert_eq!(1, fn_expr.body.exprs.len());
 
@@ -903,11 +903,11 @@ mod tests {
             let program = parse(tt.0)?;
             assert_eq!(1, program.exprs.len());
 
-            if let KNode::Fn(ref f) = program.exprs[0] {
+            if let Ast::Fn(ref f) = program.exprs[0] {
                 assert_eq!(tt.1.len(), f.params.len());
-                let params: Vec<KNode> = f.params
+                let params: Vec<Ast> = f.params
                     .iter()
-                    .map(|i| KNode::Ident(i.clone()))
+                    .map(|i| Ast::Ident(i.clone()))
                     .collect();
                 assert_eq!(tt.1, params);
             } else {
@@ -927,7 +927,7 @@ mod tests {
         let program = parse(input)?;
         assert_eq!(1, program.exprs.len());
 
-        if let KNode::Call(call_expr) = &program.exprs[0] {
+        if let Ast::Call(call_expr) = &program.exprs[0] {
             assert_eq!(3, call_expr.args.len());
 
             assert_eq!(ident_node!("add"), *call_expr.function);
@@ -962,7 +962,7 @@ mod tests {
 
         assert_eq!(1, program.exprs.len());
 
-        if let KNode::Vec(v) = program.exprs.get(0).unwrap() {
+        if let Ast::Vec(v) = program.exprs.get(0).unwrap() {
             assert_eq!(int_node!(1), v.elements[0]);
             test_infix_expression(v.elements.get(1).unwrap(), &int_node!(2), "*".to_string(), &int_node!(2));
             test_infix_expression(v.elements.get(2).unwrap(), &int_node!(3), "+".to_string(), &int_node!(3));
@@ -981,7 +981,7 @@ mod tests {
 
         assert_eq!(1, program.exprs.len());
 
-        if let KNode::Index(index) = program.exprs.get(0).unwrap() {
+        if let Ast::Index(index) = program.exprs.get(0).unwrap() {
             assert_eq!(ident_node!("myArray"), *index.left);
             test_infix_expression(&index.index, &int_node!(1), "*".to_string(), &int_node!(1));
         } else {
@@ -998,7 +998,7 @@ mod tests {
         let program = parse(input)?;
         assert_eq!(1, program.exprs.len());
 
-        if let KNode::Hash(h) = program.exprs.get(0).unwrap() {
+        if let Ast::Hash(h) = program.exprs.get(0).unwrap() {
             assert_eq!(0, h.pairs.len());
         } else {
             panic!("Expected hash expression");
@@ -1021,11 +1021,11 @@ mod tests {
 
         assert_eq!(1, program.exprs.len());
 
-        if let KNode::Hash(ref h) = program.exprs[0] {
+        if let Ast::Hash(ref h) = program.exprs[0] {
             assert_eq!(3, h.pairs.len());
 
             for (k, v) in &h.pairs {
-                if let KNode::Str(s) = k {
+                if let Ast::Str(s) = k {
                     let expected = tests.get(&s.value).unwrap();
                     assert_eq!(int_node!(*expected), *v);
                 } else {
@@ -1052,11 +1052,11 @@ mod tests {
 
         assert_eq!(1, program.exprs.len());
 
-        if let KNode::Hash(ref h) = program.exprs[0] {
+        if let Ast::Hash(ref h) = program.exprs[0] {
             assert_eq!(2, h.pairs.len());
 
             for (k, v) in &h.pairs {
-                if let KNode::Bool(b) = k {
+                if let Ast::Bool(b) = k {
                     let expected = tests.get(&b.value).unwrap();
                     assert_eq!(int_node!(*expected), *v);
                 } else {
@@ -1083,13 +1083,13 @@ mod tests {
 
         assert_eq!(1, program.exprs.len());
 
-        if let KNode::Hash(ref h) = program.exprs[0] {
+        if let Ast::Hash(ref h) = program.exprs[0] {
             assert_eq!(2, h.pairs.len());
 
             for (k, v) in &h.pairs {
-                if let KNode::Int(i) = k {
+                if let Ast::Int(i) = k {
                     let expected = tests.get(&i.value).unwrap();
-                    if let KNode::Str(s) = v {
+                    if let Ast::Str(s) = v {
                         assert_eq!(*expected, s.value);
                     } else {
                         panic!("expected value to be a string, got: {}", v);
@@ -1113,7 +1113,7 @@ mod tests {
 
         assert_eq!(1, program.exprs.len());
 
-        if let KNode::Hash(ref h) = program.exprs[0] {
+        if let Ast::Hash(ref h) = program.exprs[0] {
             assert_eq!(3, h.pairs.len());
             let one = h.pairs.get(&str_node!("one")).unwrap();
             let two = h.pairs.get(&str_node!("two")).unwrap();
@@ -1135,7 +1135,7 @@ mod tests {
         assert_eq!(1, program.exprs.len());
 
         match &program.exprs[0] {
-            KNode::Fn(f) => assert_eq!(ident_node!("myFunction"), KNode::Ident(f.name.clone())),
+            Ast::Fn(f) => assert_eq!(ident_node!("myFunction"), Ast::Ident(f.name.clone())),
             x => panic!("Expected function expression: {}", x),
         };
 

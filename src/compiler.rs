@@ -54,19 +54,19 @@ impl Compiler {
         self.symbols.clone()
     }
 
-    pub fn compile(&mut self, node: KNode) -> Result<()> {
+    pub fn compile(&mut self, node: Ast) -> Result<()> {
         match node {
-            KNode::Prog(prog) => {
+            Ast::Prog(prog) => {
                 for expr in prog.exprs { self.compile(expr)?; };
             },
-            KNode::Int(int) => {
+            Ast::Int(int) => {
                 let literal = kint!(int.value);
                 self.constants.push(literal);
                 let dest = self.next_register();
 
                 self.emit(load!(dest, (self.constants.len() - 1) as u16));
             },
-            KNode::In(infix) => {
+            Ast::In(infix) => {
                 self.compile(*infix.left)?;
                 let a = self.last_dest_reg();
 
@@ -83,7 +83,7 @@ impl Compiler {
                     _ => return Err(Error::new(format!("unknown operator: {}", infix.operator))),
                 };
             },
-            KNode::Pre(prefix) => {
+            Ast::Pre(prefix) => {
                 self.compile(*prefix.right)?;
                 let a = self.next_register();
                 let b = self.last_dest_reg();
@@ -175,7 +175,7 @@ mod tests {
         for tt in tests {
             let program = parse(tt.input)?;
             let mut compiler = Compiler::new();
-            compiler.compile(KNode::Prog(program))?;
+            compiler.compile(Ast::Prog(program))?;
 
             let bytecode = compiler.bytecode();
 
@@ -225,7 +225,7 @@ mod tests {
     #[test]
     fn test_compiler() {
         let mut c = Compiler::new();
-        assert!(c.compile(KNode::Prog(Program { exprs: Vec::new() })).is_ok());
+        assert!(c.compile(Ast::Prog(Program { exprs: Vec::new() })).is_ok());
     }
 
     #[test]

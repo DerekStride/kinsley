@@ -94,7 +94,7 @@ macro_rules! khash {
 #[macro_export]
 macro_rules! int_node {
     ($value:expr) => (
-        $crate::ast::KNode::Int(
+        $crate::ast::Ast::Int(
             $crate::ast::IntegerLiteral {
                 token: $crate::lexer::token::Token { token_type: TokenType::Int, literal: format!("{}", $value) },
                 value: $value,
@@ -106,7 +106,7 @@ macro_rules! int_node {
 #[macro_export]
 macro_rules! str_node {
     ($value:expr) => (
-        $crate::ast::KNode::Str(
+        $crate::ast::Ast::Str(
             $crate::ast::StringLiteral {
                 token: $crate::lexer::token::Token { token_type: TokenType::String, literal: $value.to_string() },
                 value: $value.to_string(),
@@ -130,14 +130,14 @@ macro_rules! bool_node {
             }
         };
 
-        $crate::ast::KNode::Bool(literal)
+        $crate::ast::Ast::Bool(literal)
     });
 }
 
 #[macro_export]
 macro_rules! ident_node {
     ($value:expr) => (
-        $crate::ast::KNode::Ident(
+        $crate::ast::Ast::Ident(
             $crate::ast::Identifier {
                 token: $crate::lexer::token::Token { token_type: TokenType::Ident, literal: $value.to_string() },
                 value: $value.to_string(),
@@ -149,7 +149,7 @@ macro_rules! ident_node {
 #[macro_export]
 macro_rules! vec_node {
     () => (
-        $crate::ast::KNode::Vec(
+        $crate::ast::Ast::Vec(
             $crate::ast::VecLiteral {
                 token: $crate::lexer::token::Token { token_type: TokenType::RBracket, literal: "[".to_string() },
                 elements: std::vec::Vec::new()
@@ -160,7 +160,7 @@ macro_rules! vec_node {
     ( $( $elem:expr ),*) => ({
         let elements = vec![ $( $elem ), * ];
 
-        $crate::ast::KNode::Vec(
+        $crate::ast::Ast::Vec(
             $crate::ast::VecLiteral {
                 token: $crate::lexer::token::Token { token_type: TokenType::RBracket, literal: "[".to_string() },
                 elements,
@@ -284,7 +284,7 @@ mod tests {
             value: 32,
             token: Token { token_type: TokenType::Int, literal: "32".to_string() }
         };
-        let expected = KNode::Int(int.clone());
+        let expected = Ast::Int(int.clone());
 
         assert_eq!(expected, int_node!(32));
         assert_eq!(expected, int_node!(int.value));
@@ -296,7 +296,7 @@ mod tests {
             value: "foobar".to_string(),
             token: Token { token_type: TokenType::String, literal: "foobar".to_string() }
         };
-        let expected = KNode::Str(str.clone());
+        let expected = Ast::Str(str.clone());
 
         assert_eq!(expected, str_node!("foobar"));
         assert_eq!(expected, str_node!(str.value));
@@ -308,7 +308,7 @@ mod tests {
             value: true,
             token: Token { token_type: TokenType::True, literal: "true".to_string() }
         };
-        let expected = KNode::Bool(bool.clone());
+        let expected = Ast::Bool(bool.clone());
 
         assert_eq!(expected, bool_node!(true));
         assert_eq!(expected, bool_node!(bool.value));
@@ -320,7 +320,7 @@ mod tests {
             value: "foobar".to_string(),
             token: Token { token_type: TokenType::Ident, literal: "foobar".to_string() }
         };
-        let expected = KNode::Ident(ident.clone());
+        let expected = Ast::Ident(ident.clone());
 
         assert_eq!(expected, ident_node!("foobar"));
         assert_eq!(expected, ident_node!(ident.value));
@@ -328,7 +328,7 @@ mod tests {
 
     #[test]
     fn test_empty_vec_node() {
-        let expected = KNode::Vec(
+        let expected = Ast::Vec(
             VecLiteral {
                 token: Token { token_type: TokenType::RBracket, literal: "[".to_string() },
                 elements: Vec::new(),
@@ -340,7 +340,7 @@ mod tests {
 
     #[test]
     fn test_vec_node() {
-        let expected = KNode::Vec(
+        let expected = Ast::Vec(
             VecLiteral {
                 token: Token { token_type: TokenType::RBracket, literal: "[".to_string() },
                 elements: vec![int_node!(1), int_node!(2), int_node!(3)],
@@ -354,7 +354,7 @@ mod tests {
         ];
 
         assert_eq!(expected, actual);
-        if let KNode::Vec(v) = actual {
+        if let Ast::Vec(v) = actual {
             assert_eq!(3, v.elements.len());
 
             assert_eq!(int_node!(1), v.elements[0]);
