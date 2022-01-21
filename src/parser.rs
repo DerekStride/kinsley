@@ -63,6 +63,8 @@ impl<I: Iterator<Item = Token>> Parser<I> {
         p.register_infix(TokenType::NotEq, Self::parse_infix_expression);
         p.register_infix(TokenType::Lt, Self::parse_infix_expression);
         p.register_infix(TokenType::Gt, Self::parse_infix_expression);
+        p.register_infix(TokenType::Le, Self::parse_infix_expression);
+        p.register_infix(TokenType::Ge, Self::parse_infix_expression);
         p.register_infix(TokenType::LParen, Self::parse_call_expression);
         p.register_infix(TokenType::LBracket, Self::parse_index_expression);
 
@@ -751,6 +753,8 @@ mod tests {
             ("5 / 5;".to_string(), int_node!(5), "/".to_string(), int_node!(5)),
             ("5 > 5;".to_string(), int_node!(5), ">".to_string(), int_node!(5)),
             ("5 < 5;".to_string(), int_node!(5), "<".to_string(), int_node!(5)),
+            ("5 >= 5;".to_string(), int_node!(5), ">=".to_string(), int_node!(5)),
+            ("5 <= 5;".to_string(), int_node!(5), "<=".to_string(), int_node!(5)),
             ("5 == 5;".to_string(), int_node!(5), "==".to_string(), int_node!(5)),
             ("5 != 5;".to_string(), int_node!(5), "!=".to_string(), int_node!(5)),
             ("true == true;".to_string(), bool_node!(true), "==".to_string(), bool_node!(true)),

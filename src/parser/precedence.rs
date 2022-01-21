@@ -21,6 +21,8 @@ pub fn compute_priority_map(map: &mut HashMap<TokenType, Precedence>) {
         (TokenType::NotEq,      Precedence::Equals),
         (TokenType::Lt,         Precedence::LessGreater),
         (TokenType::Gt,         Precedence::LessGreater),
+        (TokenType::Le,         Precedence::LessGreater),
+        (TokenType::Ge,         Precedence::LessGreater),
         (TokenType::Plus,       Precedence::Sum),
         (TokenType::Minus,      Precedence::Sum),
         (TokenType::Slash,      Precedence::Product),

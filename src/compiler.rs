@@ -74,6 +74,14 @@ impl Compiler {
 
                 self.emit(load!(dest, (self.constants.len() - 1) as u16));
             },
+            Ast::Bool(boolean) => {
+                let dest = self.next_register();
+                if boolean.value {
+                    self.emit(load_true!(dest));
+                } else {
+                    self.emit(load_false!(dest));
+                };
+            },
             Ast::In(infix) => {
                 self.compile(*infix.left)?;
                 let a = self.last_dest_reg();
@@ -88,6 +96,12 @@ impl Compiler {
                     "-" => self.emit(Sub { dest, a, b }),
                     "*" => self.emit(Mul { dest, a, b }),
                     "/" => self.emit(Div { dest, a, b }),
+                    "<" => self.emit(Lt { dest, a, b }),
+                    "<=" => self.emit(Le { dest, a, b }),
+                    ">" => self.emit(Lt { dest, a: b, b: a }),
+                    ">=" => self.emit(Le { dest, a: b, b: a }),
+                    "==" => self.emit(Eq { dest, a, b }),
+                    "!=" => self.emit(NotEq { dest, a, b }),
                     _ => return Err(Error::new(format!("unknown operator: {}", infix.operator))),
                 };
             },
@@ -98,6 +112,7 @@ impl Compiler {
 
                 match prefix.operator.as_str() {
                     "-" => self.emit(neg!(a, b)),
+                    "!" => self.emit(neg!(a, b)),
                     _ => return Err(Error::new(format!("unknown operator: {}", prefix.operator))),
                 };
             },
@@ -346,6 +361,99 @@ mod tests {
                     load!(2, 1),
                     neg!(3, 2),
                     sub!(4, 1, 3),
+                ],
+            },
+        ];
+
+        run_compiler_tests(tests)
+    }
+
+    #[test]
+    fn test_boolean_expressions() -> Result<()> {
+        let tests = vec![
+            TestCase {
+                input: "true;".to_string(),
+                expected_constants: vec![],
+                expected_instructions: vec![
+                    load_true!(0),
+                ],
+            },
+            TestCase {
+                input: "false;".to_string(),
+                expected_constants: vec![],
+                expected_instructions: vec![
+                    load_false!(0),
+                ],
+            },
+            TestCase {
+                input: "!false;".to_string(),
+                expected_constants: vec![],
+                expected_instructions: vec![
+                    load_false!(0),
+                    neg!(1, 0),
+                ],
+            },
+            TestCase {
+                input: "1 < 2;".to_string(),
+                expected_constants: vec![kint!(1), kint!(2)],
+                expected_instructions: vec![
+                    load!(0, 0),
+                    load!(1, 1),
+                    lt!(2, 0, 1),
+                ],
+            },
+            TestCase {
+                input: "1 > 2;".to_string(),
+                expected_constants: vec![kint!(1), kint!(2)],
+                expected_instructions: vec![
+                    load!(0, 0),
+                    load!(1, 1),
+                    lt!(2, 1, 0),
+                ],
+            },
+            TestCase {
+                input: "1 >= 2;".to_string(),
+                expected_constants: vec![kint!(1), kint!(2)],
+                expected_instructions: vec![
+                    load!(0, 0),
+                    load!(1, 1),
+                    le!(2, 1, 0),
+                ],
+            },
+            TestCase {
+                input: "1 == 2;".to_string(),
+                expected_constants: vec![kint!(1), kint!(2)],
+                expected_instructions: vec![
+                    load!(0, 0),
+                    load!(1, 1),
+                    eq!(2, 0, 1),
+                ],
+            },
+            TestCase {
+                input: "1 != 2;".to_string(),
+                expected_constants: vec![kint!(1), kint!(2)],
+                expected_instructions: vec![
+                    load!(0, 0),
+                    load!(1, 1),
+                    not_eq!(2, 0, 1),
+                ],
+            },
+            TestCase {
+                input: "true == false;".to_string(),
+                expected_constants: vec![],
+                expected_instructions: vec![
+                    load_true!(0),
+                    load_false!(1),
+                    eq!(2, 0, 1),
+                ],
+            },
+            TestCase {
+                input: "true != false;".to_string(),
+                expected_constants: vec![],
+                expected_instructions: vec![
+                    load_true!(0),
+                    load_false!(1),
+                    not_eq!(2, 0, 1),
                 ],
             },
         ];

@@ -11,13 +11,18 @@ pub enum Instruction {
     Halt,
     Move { dest: Register, src: Register },
     Load { dest: Register, constant: Constant },
+    LoadBool { dest: Register, bool: Constant },
     Add { dest: Register, a: Register, b: Register },
     Sub { dest: Register, a: Register, b: Register },
     Mul { dest: Register, a: Register, b: Register },
     Div { dest: Register, a: Register, b: Register },
     Neg { dest: Register, src: Register },
+    Lt { dest: Register, a: Register, b: Register },
+    Le { dest: Register, a: Register, b: Register },
+    Eq { dest: Register, a: Register, b: Register },
+    NotEq { dest: Register, a: Register, b: Register },
     SetGlobal { src: Register, dest: Constant },
-    GetGlobal { src: Register, dest: Constant },
+    GetGlobal { dest: Register, src: Constant },
     Jmp { target: JumpTarget },
 }
 
@@ -42,11 +47,16 @@ impl Instruction {
         let reg = match self {
             Move { dest, .. } => dest,
             Load { dest, .. } => dest,
+            LoadBool { dest, .. } => dest,
             Add { dest, .. } => dest,
             Sub { dest, .. } => dest,
             Mul { dest, .. } => dest,
             Div { dest, .. } => dest,
             Neg { dest, .. } => dest,
+            Lt { dest, .. } => dest,
+            Le { dest, .. } => dest,
+            Eq { dest, .. } => dest,
+            NotEq { dest, .. } => dest,
             _ => return None,
         };
 
@@ -111,8 +121,50 @@ macro_rules! set_global {
 
 #[macro_export]
 macro_rules! get_global {
-    ($src:expr, $global:expr) => (
-        $crate::compiler::code::Instruction::GetGlobal { src: $src, dest: $global }
+    ($dest:expr, $global:expr) => (
+        $crate::compiler::code::Instruction::GetGlobal { dest: $dest, src: $global }
+    )
+}
+
+#[macro_export]
+macro_rules! load_true {
+    ($dest:expr) => (
+        $crate::compiler::code::Instruction::LoadBool { dest: $dest, bool: 0 }
+    )
+}
+
+#[macro_export]
+macro_rules! load_false {
+    ($dest:expr) => (
+        $crate::compiler::code::Instruction::LoadBool { dest: $dest, bool: 1 }
+    )
+}
+
+#[macro_export]
+macro_rules! lt {
+    ($dest:expr, $a:expr, $b:expr) => (
+        $crate::compiler::code::Instruction::Lt { dest: $dest, a: $a, b: $b }
+    )
+}
+
+#[macro_export]
+macro_rules! le {
+    ($dest:expr, $a:expr, $b:expr) => (
+        $crate::compiler::code::Instruction::Le { dest: $dest, a: $a, b: $b }
+    )
+}
+
+#[macro_export]
+macro_rules! eq {
+    ($dest:expr, $a:expr, $b:expr) => (
+        $crate::compiler::code::Instruction::Eq { dest: $dest, a: $a, b: $b }
+    )
+}
+
+#[macro_export]
+macro_rules! not_eq {
+    ($dest:expr, $a:expr, $b:expr) => (
+        $crate::compiler::code::Instruction::NotEq { dest: $dest, a: $a, b: $b }
     )
 }
 

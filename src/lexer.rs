@@ -66,8 +66,24 @@ impl<I: Iterator<Item = u8>> Lexer<I> {
             b'-' => new_token(TokenType::Minus, &[ch])?,
             b'*' => new_token(TokenType::Asterisk, &[ch])?,
             b'/' => new_token(TokenType::Slash, &[ch])?,
-            b'<' => new_token(TokenType::Lt, &[ch])?,
-            b'>' => new_token(TokenType::Gt, &[ch])?,
+            b'<' => {
+                let peeked = self.peek_char()?;
+                if peeked == b'=' {
+                    self.next_char()?;
+                    new_token(TokenType::Le, &[ch, peeked])?
+                } else {
+                    new_token(TokenType::Lt, &[ch])?
+                }
+            },
+            b'>' => {
+                let peeked = self.peek_char()?;
+                if peeked == b'=' {
+                    self.next_char()?;
+                    new_token(TokenType::Ge, &[ch, peeked])?
+                } else {
+                    new_token(TokenType::Gt, &[ch])?
+                }
+            },
             b':' => new_token(TokenType::Colon, &[ch])?,
             b'!' => {
                 let peeked = self.peek_char()?;

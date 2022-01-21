@@ -20,7 +20,9 @@ pub enum TokenType {
     Dot,
 
     Lt,
+    Le,
     Gt,
+    Ge,
 
     Eq,
     NotEq,
