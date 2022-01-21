@@ -6,6 +6,7 @@ use crate::{
     object::*,
     compiler::{
         code::*,
+        optimizer::Optimizer,
         code::Instruction::*,
     },
 };
@@ -16,6 +17,8 @@ mod symbol_table;
 mod bytecode;
 mod compilation_scope;
 mod emitted_instruction;
+mod optimizer;
+mod optimizers;
 
 pub type Bytecode = bytecode::Bytecode;
 pub type SymbolTable = symbol_table::SymbolTable;
@@ -137,6 +140,10 @@ impl Compiler {
         };
 
         Ok(())
+    }
+
+    pub fn optimize<T: Optimizer>(&mut self, optimizer: &mut T) -> Result<()> {
+        optimizer.optimize(self)
     }
 
     fn emit(&mut self, ins: Instruction) {
