@@ -6,50 +6,22 @@ use crate::{
     object::*,
     compiler::{
         code::*,
-        symbol_table::SymbolTable,
         code::Instruction::*,
-        compilation_scope::CompilationScope,
     },
 };
 
 #[macro_use]
-pub mod code;
-pub mod symbol_table;
+mod code;
+mod symbol_table;
+mod bytecode;
 mod compilation_scope;
 mod emitted_instruction;
 
-pub struct Bytecode {
-    instructions: Vec<Instruction>,
-    constants: Vec<Primitive>,
-}
-
-impl Bytecode {
-    pub fn format_instructions(ins: &Vec<Instruction>) -> String {
-        ins
-            .iter()
-            .map(ToString::to_string)
-            .collect::<Vec<String>>()
-            .join("\n")
-    }
-
-    pub fn format_constants(con: &Vec<Primitive>) -> String {
-        con
-            .iter()
-            .map(ToString::to_string)
-            .collect::<Vec<String>>()
-            .join("\n")
-    }
-}
-impl fmt::Display for Bytecode {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "Bytecode:\n\nInstructions:\n{}\n\nConstants:\n{}\n",
-            Bytecode::format_instructions(&self.instructions),
-            Bytecode::format_constants(&self.constants),
-        )
-    }
-}
+pub type Bytecode = bytecode::Bytecode;
+pub type SymbolTable = symbol_table::SymbolTable;
+pub type Scope = symbol_table::Scope;
+pub type Symbol = symbol_table::Symbol;
+pub type CompilationScope = compilation_scope::CompilationScope;
 
 pub struct Compiler {
     constants: Vec<Primitive>,
@@ -129,6 +101,23 @@ impl Compiler {
                     _ => return Err(Error::new(format!("unknown operator: {}", prefix.operator))),
                 };
             },
+            Ast::Let(let_expr) => {
+                let symbol = self.symbols.define(let_expr.name.value);
+                let index = symbol.index as u16;
+
+                self.compile(*let_expr.value)?;
+                let src = self.last_dest_reg();
+
+                self.emit(set_global!(index, src));
+            },
+            Ast::Ident(identifier) => {
+                let (index, scope) = match self.symbols.resolve(&identifier.value) {
+                    Some(sym) => (sym.index, sym.scope),
+                    None => return Err(Error::new(format!("Identifier not found: {}", identifier))),
+                };
+
+                self.load_symbol(index, scope);
+            },
             x => return Err(Error::new(format!("Compilation not implemented for node: {:?}", x))),
         };
 
@@ -147,6 +136,21 @@ impl Compiler {
         } else {
             unreachable!();
         }
+    }
+
+    fn load_symbol(&mut self, index: usize, scope: Scope) {
+        let index = index as u16;
+        let reg = self.next_register();
+
+        let ins = match scope {
+            Scope::Global => get_global!(reg, index),
+            Scope::Local => panic!("Scope not implemented!"),
+            Scope::Builtin => panic!("Scope not implemented!"),
+            Scope::Free => panic!("Scope not implemented!"),
+            Scope::Function => panic!("Scope not implemented!"),
+        };
+
+        self.emit(ins);
     }
 
     fn last_dest_reg(&mut self) -> Register {
@@ -342,6 +346,36 @@ mod tests {
                     load!(2, 1),
                     neg!(3, 2),
                     sub!(4, 1, 3),
+                ],
+            },
+        ];
+
+        run_compiler_tests(tests)
+    }
+
+    #[test]
+    fn test_let_statements() -> Result<()> {
+        let tests = vec![
+            TestCase {
+                input: r#"
+                    let one = 1;
+                    let two = 2;
+                "#.to_string(),
+                expected_constants: vec![kint!(1), kint!(2)],
+                expected_instructions: vec![
+                    load!(0, 0),
+                    set_global!(0, 0),
+                    load!(1, 1),
+                    set_global!(1, 1),
+                ],
+            },
+            TestCase {
+                input: "let one = 1; one;".to_string(),
+                expected_constants: vec![kint!(1)],
+                expected_instructions: vec![
+                    load!(0, 0),
+                    set_global!(0, 0),
+                    get_global!(1, 0),
                 ],
             },
         ];

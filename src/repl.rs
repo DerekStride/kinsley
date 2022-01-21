@@ -14,7 +14,7 @@ use crate::{
     compiler::{
         Compiler,
         Bytecode,
-        symbol_table::SymbolTable,
+        SymbolTable,
     },
     ast::Ast,
 };

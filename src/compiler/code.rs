@@ -16,6 +16,8 @@ pub enum Instruction {
     Mul { dest: Register, a: Register, b: Register },
     Div { dest: Register, a: Register, b: Register },
     Neg { dest: Register, src: Register },
+    SetGlobal { src: Register, dest: Constant },
+    GetGlobal { src: Register, dest: Constant },
     Jmp { target: JumpTarget },
 }
 
@@ -97,6 +99,20 @@ macro_rules! div {
 macro_rules! neg {
     ($dest:expr, $src:expr) => (
         $crate::compiler::code::Instruction::Neg { dest: $dest, src: $src }
+    )
+}
+
+#[macro_export]
+macro_rules! set_global {
+    ($global:expr, $src:expr) => (
+        $crate::compiler::code::Instruction::SetGlobal { src: $src, dest: $global }
+    )
+}
+
+#[macro_export]
+macro_rules! get_global {
+    ($src:expr, $global:expr) => (
+        $crate::compiler::code::Instruction::GetGlobal { src: $src, dest: $global }
     )
 }
 
