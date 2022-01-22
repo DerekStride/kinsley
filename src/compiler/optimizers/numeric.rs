@@ -238,6 +238,19 @@ mod tests {
                     set_global!(0, 6),
                 ],
             },
+            TestCase {
+                input: r#"
+                    let pos = 1 + 3 * 4;
+                    let neg = -1 + 3 * -4;
+                "#.to_string(),
+                expected_constants: vec![kint!(13), kint!(-13)],
+                expected_instructions: vec![
+                    load!(4, 0),
+                    set_global!(0, 6),
+                    load!(11, 1),
+                    set_global!(1, 12),
+                ],
+            },
         ];
 
         run_optimizer_tests(tests)
