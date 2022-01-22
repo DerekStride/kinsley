@@ -1,9 +1,7 @@
 use crate::{
-    error::*,
     object::{Integer, Primitive},
     compiler::{
-        Compiler,
-        optimizer::Optimizer,
+        optimizer::*,
         code::{
             Instruction,
             Instruction::*,
@@ -21,94 +19,19 @@ impl Numeric {
 }
 
 impl Optimizer for Numeric {
-    fn optimize(&mut self, compiler: &mut Compiler) -> Result<()> {
-        let scope = compiler.scopes.last_mut().unwrap();
-        let instructions = &mut scope.instructions;
-        let constants = &mut compiler.constants;
-
-        let mut index = 0;
-        let mut ins_to_remove = Vec::new();
-        let mut con_to_remove = Vec::new();
-
-        while index < instructions.len() {
-            let pos = index;
-            index += 1;
-
-            match instructions[pos] {
-                Add { dest, a, b } => {
-                    let mut change = match try_add(constants, &instructions[..pos], dest, a, b) {
-                        Some(x) => x,
-                        None => panic!("try_add failed"),
-                    };
-
-                    ins_to_remove.append(&mut change.instruction_to_remove);
-                    con_to_remove.append(&mut change.constant_to_remove);
-                    instructions[change.pos] = change.instruction;
-                },
-                Sub { dest, a, b } => {
-                    let mut change = match try_sub(constants, &instructions[..pos], dest, a, b) {
-                        Some(x) => x,
-                        None => panic!("try_sub failed"),
-                    };
-
-                    ins_to_remove.append(&mut change.instruction_to_remove);
-                    con_to_remove.append(&mut change.constant_to_remove);
-                    instructions[change.pos] = change.instruction;
-                },
-                Mul { dest, a, b } => {
-                    let mut change = match try_mul(constants, &instructions[..pos], dest, a, b) {
-                        Some(x) => x,
-                        None => panic!("try_mul failed"),
-                    };
-
-                    ins_to_remove.append(&mut change.instruction_to_remove);
-                    con_to_remove.append(&mut change.constant_to_remove);
-                    instructions[change.pos] = change.instruction;
-                },
-                Div { dest, a, b } => {
-                    let mut change = match try_div(constants, &instructions[..pos], dest, a, b) {
-                        Some(x) => x,
-                        None => panic!("try_div failed"),
-                    };
-
-                    ins_to_remove.append(&mut change.instruction_to_remove);
-                    con_to_remove.append(&mut change.constant_to_remove);
-                    instructions[change.pos] = change.instruction;
-                },
-                Neg { dest, src } => {
-                    let mut change = match try_neg(constants, &instructions[..pos], dest, src) {
-                        Some(x) => x,
-                        None => panic!("try_div failed"),
-                    };
-
-                    instructions[pos] = change.instruction;
-                    ins_to_remove.append(&mut change.instruction_to_remove);
-                }
-                _ => {},
-            };
-        };
-
-        ins_to_remove.sort();
-        con_to_remove.sort();
-        for idx in ins_to_remove.iter().rev() {
-            instructions.remove(*idx);
-        };
-        for idx in con_to_remove.iter().rev() {
-            constants.remove(*idx);
-        };
-
-        Ok(())
+    fn optimize(&mut self, current_index: usize, instructions: &[Instruction], constants: &[Primitive]) -> Option<Change> {
+        match instructions[current_index] {
+            Add { dest, a, b } => try_add(constants, &instructions[..current_index], dest, a, b),
+            Sub { dest, a, b } => try_sub(constants, &instructions[..current_index], dest, a, b),
+            Mul { dest, a, b } => try_mul(constants, &instructions[..current_index], dest, a, b),
+            Div { dest, a, b } => try_div(constants, &instructions[..current_index], dest, a, b),
+            Neg { dest, src } => try_neg(constants, &instructions[..current_index], dest, src),
+            _ => None,
+        }
     }
 }
 
-struct Change {
-    pos: usize,
-    instruction: Instruction,
-    instruction_to_remove: Vec<usize>,
-    constant_to_remove: Vec<usize>,
-}
-
-fn try_arithmetic_op(op: &str, constants: &mut [Primitive], instructions: &[Instruction], dest: Register, a: Register, b: Register) -> Option<Change> {
+fn try_arithmetic_op(op: &str, constants: &[Primitive], instructions: &[Instruction], dest: Register, a: Register, b: Register) -> Option<Change> {
     let (ins_a, idx_a) = find_source(&instructions, a)?;
     let (ins_b, idx_b) = find_source(&instructions, b)?;
 
@@ -125,48 +48,48 @@ fn try_arithmetic_op(op: &str, constants: &mut [Primitive], instructions: &[Inst
 
     // reuse the location of one of the existing constants.
     let new_constant = kint!(value);
-    constants[const_a as usize] = new_constant;
+    // constants[const_a as usize] = new_constant.clone();
 
     Some(
         Change {
-            pos: instructions.len(),
-            instruction: load!(dest, const_a),
-            instruction_to_remove: vec![idx_a, idx_b],
-            constant_to_remove: vec![const_b as usize], // No need to remove const_a because we're using the location for the new value.
+            instructions_to_replace: vec![(instructions.len(), load!(dest, const_a))],
+            instructions_to_remove: vec![idx_a, idx_b],
+            constants_to_replace: vec![(const_a as usize, new_constant)], // No need to remove const_a because we're using the location for the new value.
+            constants_to_remove: vec![const_b as usize], // No need to remove const_a because we're using the location for the new value.
         }
     )
 }
 
-fn try_add(constants: &mut [Primitive], instructions: &[Instruction], dest: Register, a: Register, b: Register) -> Option<Change> {
+fn try_add(constants: &[Primitive], instructions: &[Instruction], dest: Register, a: Register, b: Register) -> Option<Change> {
     try_arithmetic_op("+", constants, instructions, dest, a, b)
 }
 
-fn try_sub(constants: &mut [Primitive], instructions: &[Instruction], dest: Register, a: Register, b: Register) -> Option<Change> {
+fn try_sub(constants: &[Primitive], instructions: &[Instruction], dest: Register, a: Register, b: Register) -> Option<Change> {
     try_arithmetic_op("-", constants, instructions, dest, a, b)
 }
 
-fn try_mul(constants: &mut [Primitive], instructions: &[Instruction], dest: Register, a: Register, b: Register) -> Option<Change> {
+fn try_mul(constants: &[Primitive], instructions: &[Instruction], dest: Register, a: Register, b: Register) -> Option<Change> {
     try_arithmetic_op("*", constants, instructions, dest, a, b)
 }
 
-fn try_div(constants: &mut [Primitive], instructions: &[Instruction], dest: Register, a: Register, b: Register) -> Option<Change> {
+fn try_div(constants: &[Primitive], instructions: &[Instruction], dest: Register, a: Register, b: Register) -> Option<Change> {
     try_arithmetic_op("/", constants, instructions, dest, a, b)
 }
 
-fn try_neg(constants: &mut [Primitive], instructions: &[Instruction], dest: Register, src: Register) -> Option<Change> {
+fn try_neg(constants: &[Primitive], instructions: &[Instruction], dest: Register, src: Register) -> Option<Change> {
     let (ins, idx) = find_source(&instructions, src)?;
     let (int, const_a) = maybe_int(constants, ins)?;
 
     // reuse the location of one of the existing constants.
     let new_constant = kint!(-int);
-    constants[const_a as usize] = new_constant;
+    // constants[const_a as usize] = new_constant.clone();
 
     Some(
         Change {
-            pos: instructions.len(),
-            instruction: load!(dest, const_a),
-            instruction_to_remove: vec![idx],
-            constant_to_remove: Vec::new(), // No need to remove const_a because we're using the location for the new value.
+            instructions_to_replace: vec![(instructions.len(), load!(dest, const_a))],
+            instructions_to_remove: vec![idx],
+            constants_to_replace: vec![(const_a as usize, new_constant)], // No need to remove const_a because we're using the location for the new value.
+            constants_to_remove: Vec::new(), // No need to remove const_a because we're using the location for the new value.
         }
     )
 }
@@ -198,12 +121,14 @@ fn maybe_int(constants: &[Primitive], ins: Instruction) -> Option<(i128, u16)> {
 mod tests {
     use super::*;
     use crate::{
+        error::*,
         test_utils::parse,
         ast::Ast,
         object::Primitive,
         compiler::{
-            code::Instruction,
+            Compiler,
             Bytecode,
+            code::Instruction,
         },
     };
 

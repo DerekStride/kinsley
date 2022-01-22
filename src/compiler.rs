@@ -143,7 +143,41 @@ impl Compiler {
     }
 
     pub fn optimize<T: Optimizer>(&mut self, optimizer: &mut T) -> Result<()> {
-        optimizer.optimize(self)
+        let mut changes = Vec::new();
+        let mut ins_to_remove = Vec::new();
+        let mut con_to_remove = Vec::new();
+        let scope = self.scopes.last_mut().unwrap();
+        let instructions = &mut scope.instructions;
+        let constants = &mut self.constants;
+
+        for idx in 0..instructions.len() {
+            if let Some(mut change) = optimizer.optimize(idx, instructions, constants) {
+                while let Some((pos, ins)) = change.instructions_to_replace.pop() {
+                    instructions[pos] = ins;
+                };
+                while let Some((pos, c)) = change.constants_to_replace.pop() {
+                    constants[pos] = c;
+                };
+
+                changes.push(change);
+            };
+        };
+
+        for mut change in changes {
+            ins_to_remove.append(&mut change.instructions_to_remove);
+            con_to_remove.append(&mut change.constants_to_remove);
+        };
+
+        ins_to_remove.sort();
+        con_to_remove.sort();
+        for idx in ins_to_remove.iter().rev() {
+            instructions.remove(*idx);
+        };
+        for idx in con_to_remove.iter().rev() {
+            constants.remove(*idx);
+        };
+
+        Ok(())
     }
 
     fn emit(&mut self, ins: Instruction) {
