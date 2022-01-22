@@ -21,7 +21,7 @@ pub enum Instruction {
     Le { dest: Register, a: Register, b: Register },
     Eq { dest: Register, a: Register, b: Register },
     NotEq { dest: Register, a: Register, b: Register },
-    SetGlobal { src: Register, dest: Constant },
+    SetGlobal { dest: Constant, src: Register },
     GetGlobal { dest: Register, src: Constant },
     Jmp { target: JumpTarget },
 }

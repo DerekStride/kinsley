@@ -11,7 +11,7 @@ pub struct Bytecode {
 }
 
 impl Bytecode {
-    pub fn format_instructions(ins: &Vec<Instruction>) -> String {
+    pub fn format_instructions(ins: &[Instruction]) -> String {
         ins
             .iter()
             .map(ToString::to_string)
@@ -19,7 +19,7 @@ impl Bytecode {
             .join("\n")
     }
 
-    pub fn format_constants(con: &Vec<Primitive>) -> String {
+    pub fn format_constants(con: &[Primitive]) -> String {
         con
             .iter()
             .map(ToString::to_string)
