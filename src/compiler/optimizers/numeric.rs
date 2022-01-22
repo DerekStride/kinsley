@@ -246,9 +246,9 @@ mod tests {
                 expected_constants: vec![kint!(13), kint!(-13)],
                 expected_instructions: vec![
                     load!(4, 0),
-                    set_global!(0, 6),
+                    set_global!(0, 4),
                     load!(11, 1),
-                    set_global!(1, 12),
+                    set_global!(1, 11),
                 ],
             },
         ];

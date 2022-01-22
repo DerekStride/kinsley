@@ -173,9 +173,8 @@ impl Compiler {
         for idx in ins_to_remove.iter().rev() {
             instructions.remove(*idx);
         };
-        for idx in con_to_remove.iter().rev() {
-            constants.remove(*idx);
-        };
+
+        optimizer::remap_constants(instructions, constants, &con_to_remove);
 
         Ok(())
     }
