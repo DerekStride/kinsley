@@ -17,14 +17,17 @@ mod symbol_table;
 mod bytecode;
 mod compilation_scope;
 mod emitted_instruction;
+mod register_allocator;
 mod optimizer;
 mod optimizers;
 
 pub type Bytecode = bytecode::Bytecode;
+pub type Instruction = code::Instruction;
 pub type SymbolTable = symbol_table::SymbolTable;
 pub type Scope = symbol_table::Scope;
 pub type Symbol = symbol_table::Symbol;
 pub type CompilationScope = compilation_scope::CompilationScope;
+pub type RegisterAllocator = register_allocator::RegisterAllocator;
 
 pub struct Compiler {
     constants: Vec<Primitive>,
@@ -258,7 +261,11 @@ impl fmt::Display for Compiler {
 mod tests {
     use super::*;
 
-    use crate::test_utils::parse;
+    use crate::test_utils::{
+        parse,
+        test_instructions,
+        test_constants,
+    };
 
     struct TestCase {
         input: String,
@@ -274,31 +281,11 @@ mod tests {
 
             let bytecode = compiler.bytecode();
 
-            test_instructions(tt.expected_instructions, bytecode.instructions);
-            test_constants(tt.expected_constants, bytecode.constants);
+            test_instructions(&tt.expected_instructions, &bytecode.instructions);
+            test_constants(&tt.expected_constants, &bytecode.constants);
         };
 
         Ok(())
-    }
-
-    fn test_instructions(expected: Vec<Instruction>, actual: Vec<Instruction>) {
-        assert_eq!(
-            expected,
-            actual,
-            "\n\nInstructions:\nwant:\n{}\ngot:\n{}\n",
-            Bytecode::format_instructions(&expected),
-            Bytecode::format_instructions(&actual),
-        );
-    }
-
-    fn test_constants(expected: Vec<Primitive>, actual: Vec<Primitive>) {
-        assert_eq!(
-            expected,
-            actual,
-            "\n\nConstants:\nwant:\n{}\ngot:\n{}\n",
-            Bytecode::format_constants(&expected),
-            Bytecode::format_constants(&actual),
-        );
     }
 
     #[test]

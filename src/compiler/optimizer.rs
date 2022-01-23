@@ -18,11 +18,10 @@ pub struct Change {
 
 pub trait Optimizer {
     fn optimize(&mut self, current_index: usize, instructions: &[Instruction], constants: &[Primitive]) -> Option<Change>;
-
 }
 
-/// When we remove constants from the constant pool we need to iterate over the instructions and if
-/// they reference a constant we need to compute it's new location in the constant pool.
+// When we remove constants from the constant pool we need to iterate over the instructions and if
+// they reference a constant we need to compute it's new location in the constant pool.
 pub fn remap_constants(instructions: &mut [Instruction], constants: &mut Vec<Primitive>, constants_to_remove: &[usize]) {
     let mut removed_constants = Vec::new();
     for idx in constants_to_remove {
