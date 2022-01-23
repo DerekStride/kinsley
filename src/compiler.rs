@@ -6,6 +6,7 @@ use crate::{
     object::*,
     compiler::{
         code::*,
+        optimizer::Optimizer,
         code::Instruction::*,
     },
 };
@@ -16,6 +17,8 @@ mod symbol_table;
 mod bytecode;
 mod compilation_scope;
 mod emitted_instruction;
+mod optimizer;
+mod optimizers;
 
 pub type Bytecode = bytecode::Bytecode;
 pub type SymbolTable = symbol_table::SymbolTable;
@@ -135,6 +138,43 @@ impl Compiler {
             },
             x => return Err(Error::new(format!("Compilation not implemented for node: {:?}", x))),
         };
+
+        Ok(())
+    }
+
+    pub fn optimize<T: Optimizer>(&mut self, optimizer: &mut T) -> Result<()> {
+        let mut changes = Vec::new();
+        let mut ins_to_remove = Vec::new();
+        let mut con_to_remove = Vec::new();
+        let scope = self.scopes.last_mut().unwrap();
+        let instructions = &mut scope.instructions;
+        let constants = &mut self.constants;
+
+        for idx in 0..instructions.len() {
+            if let Some(mut change) = optimizer.optimize(idx, instructions, constants) {
+                while let Some((pos, ins)) = change.instructions_to_replace.pop() {
+                    instructions[pos] = ins;
+                };
+                while let Some((pos, c)) = change.constants_to_replace.pop() {
+                    constants[pos] = c;
+                };
+
+                changes.push(change);
+            };
+        };
+
+        for mut change in changes {
+            ins_to_remove.append(&mut change.instructions_to_remove);
+            con_to_remove.append(&mut change.constants_to_remove);
+        };
+
+        ins_to_remove.sort();
+        con_to_remove.sort();
+        for idx in ins_to_remove.iter().rev() {
+            instructions.remove(*idx);
+        };
+
+        optimizer::remap_constants(instructions, constants, &con_to_remove);
 
         Ok(())
     }
