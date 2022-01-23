@@ -1,4 +1,4 @@
-use std::fmt;
+use std::{fmt, collections::HashMap};
 
 use crate::{
     error::*,
@@ -33,6 +33,8 @@ pub struct Compiler {
     constants: Vec<Primitive>,
     scopes: Vec<CompilationScope>,
     symbols: SymbolTable,
+    symbols_in_registers: HashMap<Symbol, Register>,
+    last_dest_reg: Option<Register>,
 }
 
 impl Compiler {
@@ -41,6 +43,8 @@ impl Compiler {
             constants: Vec::new(),
             scopes: vec![CompilationScope::new()],
             symbols: SymbolTable::new(),
+            symbols_in_registers: HashMap::new(),
+            last_dest_reg: None,
         }
     }
 
@@ -49,6 +53,8 @@ impl Compiler {
             constants,
             symbols,
             scopes: vec![CompilationScope::new()],
+            symbols_in_registers: HashMap::new(),
+            last_dest_reg: None,
         }
     }
 
@@ -123,21 +129,26 @@ impl Compiler {
                 };
             },
             Ast::Let(let_expr) => {
-                let symbol = self.symbols.define(let_expr.name.value);
-                let index = symbol.index as u16;
-
                 self.compile(*let_expr.value)?;
                 let src = self.last_dest_reg();
+                let symbol = self.symbols.define(let_expr.name.value);
+                let index = symbol.index as u16;
+                self.symbols_in_registers.insert(symbol.clone(), src);
 
                 self.emit(set_global!(index, src));
             },
             Ast::Ident(identifier) => {
-                let (index, scope) = match self.symbols.resolve(&identifier.value) {
-                    Some(sym) => (sym.index, sym.scope),
+                let symbol = match self.symbols.resolve(&identifier.value) {
+                    Some(x) => x,
                     None => return Err(Error::new(format!("Identifier not found: {}", identifier))),
                 };
 
-                self.load_symbol(index, scope);
+                if let Some(register) = self.symbols_in_registers.get(symbol) {
+                    self.last_dest_reg = Some(*register);
+                } else {
+                    let (index, scope) = (symbol.index, symbol.scope);
+                    self.load_symbol(index, scope);
+                };
             },
             x => return Err(Error::new(format!("Compilation not implemented for node: {:?}", x))),
         };
@@ -212,7 +223,11 @@ impl Compiler {
     }
 
     fn last_dest_reg(&mut self) -> Register {
-        self.current_scope().last_dest_register()
+        if let Some(reg) = self.last_dest_reg.take() {
+            reg
+        } else {
+            self.current_scope().last_dest_register()
+        }
     }
 
     fn enter_scope(&mut self, scope: CompilationScope) {
@@ -510,7 +525,21 @@ mod tests {
                 expected_instructions: vec![
                     load!(0, 0),
                     set_global!(0, 0),
-                    get_global!(1, 0),
+                ],
+            },
+            TestCase {
+                input: r#"
+                    let one = 1;
+                    let two = 2;
+                    one + two;
+                "#.to_string(),
+                expected_constants: vec![kint!(1), kint!(2)],
+                expected_instructions: vec![
+                    load!(0, 0),
+                    set_global!(0, 0),
+                    load!(1, 1),
+                    set_global!(1, 1),
+                    add!(2, 0, 1),
                 ],
             },
         ];
