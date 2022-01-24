@@ -66,7 +66,15 @@ impl Instruction {
 
 impl fmt::Display for Instruction {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:?}", self)
+        match self {
+            Load { dest, constant } => write!(f, "load!({}, {})", dest, constant),
+            Add { dest, a, b } => write!(f, "add!({}, {}, {})", dest, a, b),
+            Sub { dest, a, b } => write!(f, "sub!({}, {}, {})", dest, a, b),
+            Mul { dest, a, b } => write!(f, "mul!({}, {}, {})", dest, a, b),
+            Div { dest, a, b } => write!(f, "div!({}, {}, {})", dest, a, b),
+            SetGlobal { dest, src } => write!(f, "set_global!({}, {})", dest, src),
+            _ => write!(f, "{:?}", self),
+        }
     }
 }
 

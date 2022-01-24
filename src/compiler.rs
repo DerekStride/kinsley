@@ -18,6 +18,7 @@ mod bytecode;
 mod compilation_scope;
 mod emitted_instruction;
 mod register_allocator;
+mod live_ranges;
 mod optimizer;
 mod optimizers;
 
@@ -28,6 +29,7 @@ pub type Scope = symbol_table::Scope;
 pub type Symbol = symbol_table::Symbol;
 pub type CompilationScope = compilation_scope::CompilationScope;
 pub type RegisterAllocator = register_allocator::RegisterAllocator;
+pub type LiveRanges = live_ranges::LiveRanges;
 
 pub struct Compiler {
     constants: Vec<Primitive>,
