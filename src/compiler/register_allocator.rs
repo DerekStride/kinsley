@@ -50,7 +50,7 @@ mod tests {
     use super::*;
     use crate::{
         ast::Ast,
-        test_utils::{parse, test_instructions},
+        utils::{parse, test_instructions},
         compiler::{
             Compiler,
             Bytecode,

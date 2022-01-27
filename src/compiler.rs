@@ -278,7 +278,7 @@ impl fmt::Display for Compiler {
 mod tests {
     use super::*;
 
-    use crate::test_utils::{
+    use crate::utils::{
         parse,
         test_instructions,
         test_constants,

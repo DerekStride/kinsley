@@ -1,3 +1,5 @@
+use std::iter::Peekable;
+
 use crate::{
     ast::*,
     object::Primitive,
@@ -39,6 +41,10 @@ pub fn parse(input: String) -> Result<Program> {
         .to_vec()
         .into_iter()
         .peekable();
+    parse_stream(stream)
+}
+
+pub fn parse_stream<I: Iterator<Item = u8>>(stream: Peekable<I>) -> Result<Program> {
     let lexer = Lexer::new(stream)?;
 
     let tokens = lexer
@@ -51,7 +57,6 @@ pub fn parse(input: String) -> Result<Program> {
 
     Ok(program)
 }
-
 
 pub fn check_parser_errors<I: Iterator<Item = Token>>(p: Parser<I>) -> Result<()> {
     let errors = p.errors();

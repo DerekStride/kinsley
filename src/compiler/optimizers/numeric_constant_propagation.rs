@@ -122,7 +122,7 @@ mod tests {
     use super::*;
     use crate::{
         error::*,
-        test_utils::*,
+        utils::*,
         ast::Ast,
         compiler::Compiler,
     };

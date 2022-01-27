@@ -564,7 +564,7 @@ impl<I: Iterator<Item = Token>> Parser<I> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{test_utils::*, lexer::Lexer};
+    use crate::{utils::*, lexer::Lexer};
 
     fn test_let_expression(node: &Ast, expected_ident: &String, expected_expr: &Ast) {
         let let_expr = match node {
