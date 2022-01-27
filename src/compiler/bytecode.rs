@@ -14,7 +14,8 @@ impl Bytecode {
     pub fn format_instructions(ins: &[Instruction]) -> String {
         ins
             .iter()
-            .map(ToString::to_string)
+            .enumerate()
+            .map(|(idx, instruction)| format!("{}: {}", idx, instruction))
             .collect::<Vec<String>>()
             .join("\n")
     }

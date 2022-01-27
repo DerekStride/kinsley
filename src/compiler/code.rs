@@ -62,6 +62,93 @@ impl Instruction {
 
         Some(*reg)
     }
+
+    pub fn try_replace_register(&self, old: Register, new: Register) -> Option<Instruction> {
+        let ins = match self {
+            Add { dest, a, b } => {
+                let dest = try_update(*dest, old, new);
+                let a = try_update(*a, old, new);
+                let b = try_update(*b, old, new);
+                Add { dest, a, b }
+            },
+            Sub { dest, a, b } => {
+                let dest = try_update(*dest, old, new);
+                let a = try_update(*a, old, new);
+                let b = try_update(*b, old, new);
+                Sub { dest, a, b }
+            },
+            Mul { dest, a, b } => {
+                let dest = try_update(*dest, old, new);
+                let a = try_update(*a, old, new);
+                let b = try_update(*b, old, new);
+                Mul { dest, a, b }
+            },
+            Div { dest, a, b } => {
+                let dest = try_update(*dest, old, new);
+                let a = try_update(*a, old, new);
+                let b = try_update(*b, old, new);
+                Div { dest, a, b }
+            },
+            Lt { dest, a, b } => {
+                let dest = try_update(*dest, old, new);
+                let a = try_update(*a, old, new);
+                let b = try_update(*b, old, new);
+                Lt { dest, a, b }
+            },
+            Le { dest, a, b } => {
+                let dest = try_update(*dest, old, new);
+                let a = try_update(*a, old, new);
+                let b = try_update(*b, old, new);
+                Le { dest, a, b }
+            },
+            Eq { dest, a, b } => {
+                let dest = try_update(*dest, old, new);
+                let a = try_update(*a, old, new);
+                let b = try_update(*b, old, new);
+                Eq { dest, a, b }
+            },
+            NotEq { dest, a, b } => {
+                let dest = try_update(*dest, old, new);
+                let a = try_update(*a, old, new);
+                let b = try_update(*b, old, new);
+                NotEq { dest, a, b }
+            },
+            Neg { dest, src } => {
+                let dest = try_update(*dest, old, new);
+                let src = try_update(*src, old, new);
+                Neg { dest, src }
+            },
+            Move { dest, src } => {
+                let dest = try_update(*dest, old, new);
+                let src = try_update(*src, old, new);
+                Move { dest, src }
+            },
+            Load { dest, constant } => {
+                let dest = try_update(*dest, old, new);
+                Load { dest, constant: *constant }
+            },
+            LoadBool { dest, bool } => {
+                let dest = try_update(*dest, old, new);
+                LoadBool { dest, bool: *bool }
+            },
+            SetGlobal { dest, src } => {
+                let src = try_update(*src, old, new);
+                SetGlobal { dest: *dest, src }
+            },
+            GetGlobal { dest, src } => {
+                let dest = try_update(*dest, old, new);
+                GetGlobal { dest, src: *src }
+            },
+            _ => return None,
+        };
+
+        Some(ins)
+    }
+}
+
+#[inline]
+fn try_update(reg: Register, old: Register, new: Register) -> Register {
+    if reg == old { new } else { reg }
 }
 
 impl fmt::Display for Instruction {

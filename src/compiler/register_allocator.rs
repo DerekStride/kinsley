@@ -1,3 +1,5 @@
+use std::ops::RangeInclusive;
+
 use crate::{
     error::*,
     compiler::{
@@ -10,8 +12,34 @@ pub struct RegisterAllocator { }
 
 impl RegisterAllocator {
     pub fn allocate(instructions: &mut [Instruction]) -> Result<()> {
-        let live_ranges = LiveRanges::from(instructions.as_ref());
-        println!("{}", live_ranges);
+        #[derive(Debug)]
+        struct Update {
+            old_register: Register,
+            new_register: Register,
+            range: RangeInclusive<usize>,
+        }
+
+        let mut live_ranges = LiveRanges::from(instructions.as_ref());
+        let mut updates = Vec::new();
+
+        for (idx, ins) in instructions.iter().enumerate() {
+            let old_register = match ins.last_dest_register() {
+                Some(x) => x,
+                None => continue,
+            };
+            if let Some((new_register, range)) = live_ranges.reassign(old_register, idx) {
+                updates.push(Update { old_register, new_register, range });
+            };
+        };
+
+        for update in updates {
+            for idx in update.range {
+                match instructions[idx].try_replace_register(update.old_register, update.new_register) {
+                    Some(ins) => instructions[idx] = ins,
+                    _ => continue,
+                };
+            };
+        };
 
         Ok(())
     }
@@ -86,7 +114,7 @@ mod tests {
             // b + c;
             add!(3, 1, 0),
             // c + d;
-            add!(1, 3, 4), // Can reuse r1 because b is no longer used.
+            add!(1, 0, 2), // Can reuse r1 because b is no longer used.
         ];
 
         RegisterAllocator::allocate(&mut instructions)?;

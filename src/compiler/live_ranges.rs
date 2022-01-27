@@ -16,6 +16,43 @@ pub struct LiveRanges {
     instructions: Vec<String>,
 }
 
+impl LiveRanges {
+    pub fn reassign(&mut self, reg: Register, idx: usize) -> Option<(Register, RangeInclusive<usize>)> {
+        let ranges = self.map.get(&reg)?;
+        let range_idx = ranges
+            .iter()
+            .position(|range| range.contains(&idx))?;
+
+        let new_register = self.first_non_overlapping_register(&ranges[range_idx], reg)?;
+
+        let old_ranges = self.map.get_mut(&reg)?;
+        let range = old_ranges.remove(range_idx);
+
+        let new_ranges = self.map.get_mut(&new_register)?;
+        new_ranges.push(range.clone());
+
+        Some((new_register, range))
+    }
+
+    fn first_non_overlapping_register(&self, current_range: &RangeInclusive<usize>, current_reg: Register) -> Option<Register> {
+        for (reg, ranges) in &self.map {
+            if current_reg <= *reg { continue; };
+            if !ranges.iter().any(|range| ranges_overlap(current_range, range)) {
+                return Some(*reg);
+            };
+        };
+
+        None
+    }
+}
+
+fn ranges_overlap<T: PartialOrd>(r1: &RangeInclusive<T>, r2: &RangeInclusive<T>) -> bool {
+    r1.contains(r2.start())
+        || r1.contains(r2.end())
+        || r2.contains(r1.start())
+        || r2.contains(r1.end())
+}
+
 impl From<&[Instruction]> for LiveRanges {
     fn from(instructions: &[Instruction]) -> Self {
         let mut live_ranges: BTreeMap<Register, Vec<RangeInclusive<usize>>> = BTreeMap::new();
@@ -91,7 +128,43 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_display_for_live_ranges() {
+    fn test_reassign_non_overlapping_registers() {
+        let ins = vec![
+            // let a = 0;
+            load!(0, 0),
+            set_global!(0, 0),
+            // let b = 1;
+            load!(1, 1),
+            set_global!(1, 1),
+            // a + b;
+            add!(2, 0, 1),
+            // let c = 2;
+            load!(3, 2), // Can reuse r0 becuase it's re-written at the next expression.
+            set_global!(2, 3),
+            // let d = 3;
+            load!(0, 3),
+            set_global!(3, 0),
+            // c + d;
+            add!(6, 1, 0), // Can re-use r2
+        ];
+        let mut live_ranges = LiveRanges::from(ins.as_slice());
+
+        //                         register ----v  v---- instruction index
+        let (reg, range) = live_ranges.reassign(3, 5).unwrap();
+        assert_eq!(0, reg);
+        assert_eq!(5..=5, range);
+
+        let (reg, range) = live_ranges.reassign(6, 9).unwrap();
+        assert_eq!(2, reg);
+        assert_eq!(9..=9, range);
+
+        assert!(live_ranges.reassign(1, 3).is_none());
+        assert!(live_ranges.reassign(3, 9).is_none());
+        assert!(live_ranges.reassign(1, 0).is_none());
+    }
+
+    #[test]
+    fn test_multiple_ranges_for_live_ranges() {
         let ins = vec![
             // let a = 0;
             load!(0, 0),
@@ -129,7 +202,7 @@ mod tests {
     }
 
     #[test]
-    fn test_display_for_live_ranges2() {
+    fn test_ranges_for_live_ranges() {
         let ins = vec![
             // let a = 0;
             load!(0, 0),
