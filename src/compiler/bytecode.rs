@@ -32,7 +32,7 @@ impl fmt::Display for Bytecode {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "Bytecode:\n\nInstructions:\n{}\n\nConstants:\n{}\n",
+            "Bytecode:\n\nInstructions:\n{}\n\nConstants:\n{}",
             Bytecode::format_instructions(&self.instructions),
             Bytecode::format_constants(&self.constants),
         )

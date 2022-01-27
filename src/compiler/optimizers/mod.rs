@@ -1,1 +1,3 @@
-pub mod numeric_constant_propagation;
+mod numeric_constant_propagation;
+
+pub type NumericConstantPropagation = numeric_constant_propagation::NumericConstantPropagation;

@@ -49,3 +49,56 @@ After reassignment:
  10: add!(1, 0, 2)              *   *   *
 
 ```
+
+## Constant Propagation
+
+I might have the name of this optimization incorrect, I didn't know the term to search for but I think this is close
+enough. That said this optimization precompute constants, e.g. converts `let x = 3 * 4;` into `let x = 12;` in the
+bytecode. To see it in action try running the `bin/constant_propagation.rs` program.
+
+```
+➜ kinsley/ cat examples/constant_propagation.kin
+let pos = 1 + 3 * 4;
+let neg = -1 + 3 * -4;
+
+➜ kinsley/ cargo run --bin=constant_propagation -- examples/constant_propagation.kin
+
+Before Constant Propagation:
+Bytecode:
+
+Instructions:
+0: load!(0, 0)
+1: load!(1, 1)
+2: load!(2, 2)
+3: mul!(3, 1, 2)
+4: add!(4, 0, 3)
+5: set_global!(0, 4)
+6: load!(5, 3)
+7: Neg { dest: 6, src: 5 }
+8: load!(7, 4)
+9: load!(8, 5)
+10: Neg { dest: 9, src: 8 }
+11: mul!(10, 7, 9)
+12: add!(11, 6, 10)
+13: set_global!(1, 11)
+
+Constants:
+1
+3
+4
+1
+3
+4
+
+After Constant Propagation:
+Bytecode:
+
+Instructions:
+0: load!(4, 0)
+1: set_global!(0, 4)
+2: load!(11, 1)
+3: set_global!(1, 11)
+
+Constants:
+13
+-13

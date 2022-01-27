@@ -19,8 +19,8 @@ mod compilation_scope;
 mod emitted_instruction;
 mod register_allocator;
 mod live_ranges;
-mod optimizer;
-mod optimizers;
+pub mod optimizer;
+pub mod optimizers;
 
 pub type Bytecode = bytecode::Bytecode;
 pub type Instruction = code::Instruction;
