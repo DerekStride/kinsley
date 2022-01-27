@@ -1,12 +1,37 @@
 use crate::{
     ast::*,
+    object::Primitive,
     error::{Result, Error},
     lexer::{
         Lexer,
         token::Token,
     },
     parser::Parser,
+    compiler::{
+        Bytecode,
+        Instruction,
+    },
 };
+
+pub fn test_instructions(expected: &[Instruction], actual: &[Instruction]) {
+    assert_eq!(
+        expected,
+        actual,
+        "\n\nInstructions:\nwant:\n{}\ngot:\n{}\n",
+        Bytecode::format_instructions(&expected),
+        Bytecode::format_instructions(&actual),
+        );
+}
+
+pub fn test_constants(expected: &[Primitive], actual: &[Primitive]) {
+    assert_eq!(
+        expected,
+        actual,
+        "\n\nConstants:\nwant:\n{}\ngot:\n{}\n",
+        Bytecode::format_constants(&expected),
+        Bytecode::format_constants(&actual),
+        );
+}
 
 pub fn parse(input: String) -> Result<Program> {
     let stream = input

@@ -1,4 +1,4 @@
-use std::fmt;
+use std::{fmt, collections::HashMap};
 
 use crate::{
     error::*,
@@ -17,19 +17,26 @@ mod symbol_table;
 mod bytecode;
 mod compilation_scope;
 mod emitted_instruction;
+mod register_allocator;
+mod live_ranges;
 mod optimizer;
 mod optimizers;
 
 pub type Bytecode = bytecode::Bytecode;
+pub type Instruction = code::Instruction;
 pub type SymbolTable = symbol_table::SymbolTable;
 pub type Scope = symbol_table::Scope;
 pub type Symbol = symbol_table::Symbol;
 pub type CompilationScope = compilation_scope::CompilationScope;
+pub type RegisterAllocator = register_allocator::RegisterAllocator;
+pub type LiveRanges = live_ranges::LiveRanges;
 
 pub struct Compiler {
     constants: Vec<Primitive>,
     scopes: Vec<CompilationScope>,
     symbols: SymbolTable,
+    symbols_in_registers: HashMap<Symbol, Register>,
+    last_dest_reg: Option<Register>,
 }
 
 impl Compiler {
@@ -38,6 +45,8 @@ impl Compiler {
             constants: Vec::new(),
             scopes: vec![CompilationScope::new()],
             symbols: SymbolTable::new(),
+            symbols_in_registers: HashMap::new(),
+            last_dest_reg: None,
         }
     }
 
@@ -46,6 +55,8 @@ impl Compiler {
             constants,
             symbols,
             scopes: vec![CompilationScope::new()],
+            symbols_in_registers: HashMap::new(),
+            last_dest_reg: None,
         }
     }
 
@@ -120,21 +131,26 @@ impl Compiler {
                 };
             },
             Ast::Let(let_expr) => {
-                let symbol = self.symbols.define(let_expr.name.value);
-                let index = symbol.index as u16;
-
                 self.compile(*let_expr.value)?;
                 let src = self.last_dest_reg();
+                let symbol = self.symbols.define(let_expr.name.value);
+                let index = symbol.index as u16;
+                self.symbols_in_registers.insert(symbol.clone(), src);
 
                 self.emit(set_global!(index, src));
             },
             Ast::Ident(identifier) => {
-                let (index, scope) = match self.symbols.resolve(&identifier.value) {
-                    Some(sym) => (sym.index, sym.scope),
+                let symbol = match self.symbols.resolve(&identifier.value) {
+                    Some(x) => x,
                     None => return Err(Error::new(format!("Identifier not found: {}", identifier))),
                 };
 
-                self.load_symbol(index, scope);
+                if let Some(register) = self.symbols_in_registers.get(symbol) {
+                    self.last_dest_reg = Some(*register);
+                } else {
+                    let (index, scope) = (symbol.index, symbol.scope);
+                    self.load_symbol(index, scope);
+                };
             },
             x => return Err(Error::new(format!("Compilation not implemented for node: {:?}", x))),
         };
@@ -209,7 +225,11 @@ impl Compiler {
     }
 
     fn last_dest_reg(&mut self) -> Register {
-        self.current_scope().last_dest_register()
+        if let Some(reg) = self.last_dest_reg.take() {
+            reg
+        } else {
+            self.current_scope().last_dest_register()
+        }
     }
 
     fn enter_scope(&mut self, scope: CompilationScope) {
@@ -258,7 +278,11 @@ impl fmt::Display for Compiler {
 mod tests {
     use super::*;
 
-    use crate::test_utils::parse;
+    use crate::test_utils::{
+        parse,
+        test_instructions,
+        test_constants,
+    };
 
     struct TestCase {
         input: String,
@@ -274,31 +298,11 @@ mod tests {
 
             let bytecode = compiler.bytecode();
 
-            test_instructions(tt.expected_instructions, bytecode.instructions);
-            test_constants(tt.expected_constants, bytecode.constants);
+            test_instructions(&tt.expected_instructions, &bytecode.instructions);
+            test_constants(&tt.expected_constants, &bytecode.constants);
         };
 
         Ok(())
-    }
-
-    fn test_instructions(expected: Vec<Instruction>, actual: Vec<Instruction>) {
-        assert_eq!(
-            expected,
-            actual,
-            "\n\nInstructions:\nwant:\n{}\ngot:\n{}\n",
-            Bytecode::format_instructions(&expected),
-            Bytecode::format_instructions(&actual),
-        );
-    }
-
-    fn test_constants(expected: Vec<Primitive>, actual: Vec<Primitive>) {
-        assert_eq!(
-            expected,
-            actual,
-            "\n\nConstants:\nwant:\n{}\ngot:\n{}\n",
-            Bytecode::format_constants(&expected),
-            Bytecode::format_constants(&actual),
-        );
     }
 
     #[test]
@@ -523,7 +527,21 @@ mod tests {
                 expected_instructions: vec![
                     load!(0, 0),
                     set_global!(0, 0),
-                    get_global!(1, 0),
+                ],
+            },
+            TestCase {
+                input: r#"
+                    let one = 1;
+                    let two = 2;
+                    one + two;
+                "#.to_string(),
+                expected_constants: vec![kint!(1), kint!(2)],
+                expected_instructions: vec![
+                    load!(0, 0),
+                    set_global!(0, 0),
+                    load!(1, 1),
+                    set_global!(1, 1),
+                    add!(2, 0, 1),
                 ],
             },
         ];

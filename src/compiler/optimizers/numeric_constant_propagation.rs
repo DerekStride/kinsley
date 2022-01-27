@@ -10,15 +10,15 @@ use crate::{
     },
 };
 
-pub struct Numeric {}
+pub struct NumericConstantPropagation {}
 
-impl Numeric {
+impl NumericConstantPropagation {
     pub fn new() -> Self {
         Self {}
     }
 }
 
-impl Optimizer for Numeric {
+impl Optimizer for NumericConstantPropagation {
     fn optimize(&mut self, current_index: usize, instructions: &[Instruction], constants: &[Primitive]) -> Option<Change> {
         match instructions[current_index] {
             Add { dest, a, b } => try_add(constants, &instructions[..current_index], dest, a, b),
@@ -122,14 +122,9 @@ mod tests {
     use super::*;
     use crate::{
         error::*,
-        test_utils::parse,
+        test_utils::*,
         ast::Ast,
-        object::Primitive,
-        compiler::{
-            Compiler,
-            Bytecode,
-            code::Instruction,
-        },
+        compiler::Compiler,
     };
 
     struct TestCase {
@@ -144,35 +139,15 @@ mod tests {
             let mut compiler = Compiler::new();
             compiler.compile(Ast::Prog(program))?;
 
-            compiler.optimize(&mut Numeric::new())?;
+            compiler.optimize(&mut NumericConstantPropagation::new())?;
 
             let bytecode = compiler.bytecode();
 
-            test_instructions(tt.expected_instructions, bytecode.instructions);
-            test_constants(tt.expected_constants, bytecode.constants);
+            test_instructions(&tt.expected_instructions, &bytecode.instructions);
+            test_constants(&tt.expected_constants, &bytecode.constants);
         };
 
         Ok(())
-    }
-
-    fn test_instructions(expected: Vec<Instruction>, actual: Vec<Instruction>) {
-        assert_eq!(
-            expected,
-            actual,
-            "\n\nInstructions:\nwant:\n{}\ngot:\n{}\n",
-            Bytecode::format_instructions(&expected),
-            Bytecode::format_instructions(&actual),
-        );
-    }
-
-    fn test_constants(expected: Vec<Primitive>, actual: Vec<Primitive>) {
-        assert_eq!(
-            expected,
-            actual,
-            "\n\nConstants:\nwant:\n{}\ngot:\n{}\n",
-            Bytecode::format_constants(&expected),
-            Bytecode::format_constants(&actual),
-        );
     }
 
     #[test]
