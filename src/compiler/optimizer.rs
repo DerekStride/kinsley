@@ -8,11 +8,8 @@ use crate::{
 
 
 pub trait Optimizer {
-    type Change;
-
-    fn optimize(&mut self, current_index: usize, instructions: &[Instruction], constants: &[Primitive]) -> Option<Self::Change>;
-    fn apply_change(&mut self, change: &Self::Change, instructions: &mut [Instruction], constants: &mut [Primitive]);
-    fn finalize_changes(&mut self, changes: &mut [Self::Change], instructions: &mut Vec<Instruction>, constants: &mut Vec<Primitive>);
+    fn optimize(&mut self, current_index: usize, instructions: &mut [Instruction], constants: &mut [Primitive]);
+    fn finalize(&mut self, instructions: &mut Vec<Instruction>, constants: &mut Vec<Primitive>);
 }
 
 // When we remove constants from the constant pool we need to iterate over the instructions and if

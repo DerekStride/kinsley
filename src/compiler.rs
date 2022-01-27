@@ -159,19 +159,15 @@ impl Compiler {
     }
 
     pub fn optimize<T: Optimizer>(&mut self, optimizer: &mut T) -> Result<()> {
-        let mut changes = Vec::new();
         let scope = self.scopes.last_mut().unwrap();
         let instructions = &mut scope.instructions;
         let constants = &mut self.constants;
 
         for idx in 0..instructions.len() {
-            if let Some(change) = optimizer.optimize(idx, instructions, constants) {
-                optimizer.apply_change(&change, instructions, constants);
-                changes.push(change);
-            };
+            optimizer.optimize(idx, instructions, constants);
         };
 
-        optimizer.finalize_changes(&mut changes, instructions, constants);
+        optimizer.finalize(instructions, constants);
 
         Ok(())
     }
