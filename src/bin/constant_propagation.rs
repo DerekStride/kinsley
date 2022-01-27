@@ -13,7 +13,6 @@ use kinsley::{
     utils::parse_stream,
     compiler::{
         Compiler,
-        optimizer::*,
         optimizers::NumericConstantPropagation,
     },
 };

@@ -6,20 +6,13 @@ use crate::{
     },
 };
 
-#[derive(Debug)]
-pub struct Change {
-    pub instructions_to_replace: Vec<(usize, Instruction)>,
-    pub instructions_to_remove: Vec<usize>,
-
-    pub constants_to_replace: Vec<(usize, Primitive)>,
-    pub constants_to_remove: Vec<usize>,
-}
-
 
 pub trait Optimizer {
-    fn optimize(&mut self, current_index: usize, instructions: &[Instruction], constants: &[Primitive]) -> Option<Change>;
-    // TODO: Have optimizers apply their own changes.
-    // fn apply_changes(&mut self, instructions: &mut [Instruction], constants: &mut [Primitive]);
+    type Change;
+
+    fn optimize(&mut self, current_index: usize, instructions: &[Instruction], constants: &[Primitive]) -> Option<Self::Change>;
+    fn apply_change(&mut self, change: &Self::Change, instructions: &mut [Instruction], constants: &mut [Primitive]);
+    fn finalize_changes(&mut self, changes: &mut [Self::Change], instructions: &mut Vec<Instruction>, constants: &mut Vec<Primitive>);
 }
 
 // When we remove constants from the constant pool we need to iterate over the instructions and if
