@@ -11,7 +11,7 @@ use crate::{
 };
 
 #[derive(Debug)]
-struct NumericChange {
+struct Change {
     pub instructions_to_replace: Vec<(usize, Instruction)>,
     pub instructions_to_remove: Vec<usize>,
 
@@ -70,7 +70,7 @@ impl Optimizer for NumericConstantPropagation {
     }
 }
 
-fn try_arithmetic_op(op: &str, constants: &[Primitive], instructions: &[Instruction], dest: Register, a: Register, b: Register) -> Option<NumericChange> {
+fn try_arithmetic_op(op: &str, constants: &[Primitive], instructions: &[Instruction], dest: Register, a: Register, b: Register) -> Option<Change> {
     let (ins_a, idx_a) = find_source(&instructions, a)?;
     let (ins_b, idx_b) = find_source(&instructions, b)?;
 
@@ -86,7 +86,7 @@ fn try_arithmetic_op(op: &str, constants: &[Primitive], instructions: &[Instruct
     };
 
     Some(
-        NumericChange {
+        Change {
             instructions_to_replace: vec![(instructions.len(), load!(dest, const_a))],
             instructions_to_remove: vec![idx_a, idx_b],
             constants_to_replace: vec![(const_a as usize, kint!(value))], // No need to remove const_a because we're using the location for the new value.
@@ -95,28 +95,28 @@ fn try_arithmetic_op(op: &str, constants: &[Primitive], instructions: &[Instruct
     )
 }
 
-fn try_add(constants: &[Primitive], instructions: &[Instruction], dest: Register, a: Register, b: Register) -> Option<NumericChange> {
+fn try_add(constants: &[Primitive], instructions: &[Instruction], dest: Register, a: Register, b: Register) -> Option<Change> {
     try_arithmetic_op("+", constants, instructions, dest, a, b)
 }
 
-fn try_sub(constants: &[Primitive], instructions: &[Instruction], dest: Register, a: Register, b: Register) -> Option<NumericChange> {
+fn try_sub(constants: &[Primitive], instructions: &[Instruction], dest: Register, a: Register, b: Register) -> Option<Change> {
     try_arithmetic_op("-", constants, instructions, dest, a, b)
 }
 
-fn try_mul(constants: &[Primitive], instructions: &[Instruction], dest: Register, a: Register, b: Register) -> Option<NumericChange> {
+fn try_mul(constants: &[Primitive], instructions: &[Instruction], dest: Register, a: Register, b: Register) -> Option<Change> {
     try_arithmetic_op("*", constants, instructions, dest, a, b)
 }
 
-fn try_div(constants: &[Primitive], instructions: &[Instruction], dest: Register, a: Register, b: Register) -> Option<NumericChange> {
+fn try_div(constants: &[Primitive], instructions: &[Instruction], dest: Register, a: Register, b: Register) -> Option<Change> {
     try_arithmetic_op("/", constants, instructions, dest, a, b)
 }
 
-fn try_neg(constants: &[Primitive], instructions: &[Instruction], dest: Register, src: Register) -> Option<NumericChange> {
+fn try_neg(constants: &[Primitive], instructions: &[Instruction], dest: Register, src: Register) -> Option<Change> {
     let (ins, idx) = find_source(&instructions, src)?;
     let (int, const_a) = maybe_int(constants, ins)?;
 
     Some(
-        NumericChange {
+        Change {
             instructions_to_replace: vec![(instructions.len(), load!(dest, const_a))],
             instructions_to_remove: vec![idx],
             constants_to_replace: vec![(const_a as usize, kint!(-int))], // No need to remove const_a because we're using the location for the new value.
