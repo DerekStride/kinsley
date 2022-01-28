@@ -6,7 +6,7 @@ use kinsley::{
     compiler::{
         Compiler,
         LiveRanges,
-        RegisterAllocator,
+        optimizers::RegisterAllocator,
     },
 };
 
