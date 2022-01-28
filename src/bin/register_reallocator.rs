@@ -1,20 +1,12 @@
-use std::{
-    env,
-    fs::File,
-    io::{
-        Read,
-        BufReader,
-    },
-};
+use std::env;
 
 use kinsley::{
-    ast::Ast,
     error::*,
-    utils::parse_stream,
+    utils::parse_file,
     compiler::{
         Compiler,
         LiveRanges,
-        RegisterAllocator
+        RegisterAllocator,
     },
 };
 
@@ -40,25 +32,16 @@ fn main() -> Result<()> {
         },
     };
 
-    let file = File::open(filepath)?;
-    let buf_reader = BufReader::new(file);
-    let stream = buf_reader
-        .bytes()
-        .map(std::result::Result::unwrap)
-        .peekable();
-
-    let program = parse_stream(stream)?;
+    let program = parse_file(filepath)?;
     let mut compiler = Compiler::new();
-    compiler.compile(Ast::Prog(program))?;
-    let bytecode = compiler.bytecode();
-    let mut instructions = bytecode.instructions;
+    compiler.compile(program)?;
 
-    let live_ranges = LiveRanges::from(instructions.as_slice());
+    let live_ranges = LiveRanges::from(compiler.bytecode().instructions.as_slice());
     println!("Before reassignment:\n{}", live_ranges);
 
-    RegisterAllocator::allocate(&mut instructions)?;
+    compiler.optimize(&mut RegisterAllocator::new())?;
 
-    let live_ranges = LiveRanges::from(instructions.as_slice());
+    let live_ranges = LiveRanges::from(compiler.bytecode().instructions.as_slice());
     println!("After reassignment:\n{}", live_ranges);
 
     Ok(())

@@ -1,16 +1,8 @@
-use std::{
-    env,
-    fs::File,
-    io::{
-        Read,
-        BufReader,
-    },
-};
+use std::env;
 
 use kinsley::{
-    ast::Ast,
     error::*,
-    utils::parse_stream,
+    utils::parse_file,
     compiler::{
         Compiler,
         optimizers::NumericConstantPropagation,
@@ -39,16 +31,9 @@ fn main() -> Result<()> {
         },
     };
 
-    let file = File::open(filepath)?;
-    let buf_reader = BufReader::new(file);
-    let stream = buf_reader
-        .bytes()
-        .map(std::result::Result::unwrap)
-        .peekable();
-
-    let program = parse_stream(stream)?;
+    let program = parse_file(filepath)?;
     let mut compiler = Compiler::new();
-    compiler.compile(Ast::Prog(program))?;
+    compiler.compile(program)?;
 
     println!("Before Constant Propagation:\n{}", compiler.bytecode());
 

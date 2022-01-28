@@ -1,47 +1,64 @@
 use std::ops::RangeInclusive;
 
 use crate::{
-    error::*,
+    object::Primitive,
     compiler::{
         code::*,
         LiveRanges,
+        optimizer::Optimizer,
     },
 };
 
-pub struct RegisterAllocator { }
+#[derive(Debug)]
+struct Update {
+    old_register: Register,
+    new_register: Register,
+    range: RangeInclusive<usize>,
+}
+
+pub struct RegisterAllocator {
+    live_ranges: Option<LiveRanges>,
+    updates: Vec<Update>,
+}
 
 impl RegisterAllocator {
-    pub fn allocate(instructions: &mut [Instruction]) -> Result<()> {
-        #[derive(Debug)]
-        struct Update {
-            old_register: Register,
-            new_register: Register,
-            range: RangeInclusive<usize>,
+    pub fn new() -> Self {
+        Self {
+            live_ranges: None,
+            updates: Vec::new()
         }
+    }
+}
 
-        let mut live_ranges = LiveRanges::from(instructions.as_ref());
-        let mut updates = Vec::new();
+impl Optimizer for RegisterAllocator {
+    fn optimize(&mut self, current_index: usize, instructions: &mut [Instruction], _constants: &mut [Primitive]) {
+        if self.live_ranges.is_none() {
+            self.live_ranges = Some(LiveRanges::from(instructions.as_ref()));
+        };
+        let live_ranges = self.live_ranges.as_mut().unwrap();
 
-        for (idx, ins) in instructions.iter().enumerate() {
-            let old_register = match ins.last_dest_register() {
-                Some(x) => x,
-                None => continue,
-            };
-            if let Some((new_register, range)) = live_ranges.reassign(old_register, idx) {
-                updates.push(Update { old_register, new_register, range });
-            };
+        let ins = instructions[current_index];
+        let old_register = match ins.last_dest_register() {
+            Some(x) => x,
+            None => return,
+        };
+        let (new_register, range) = match live_ranges.reassign(old_register, current_index) {
+            Some(x) => x,
+            None => return,
         };
 
-        for update in updates {
-            for idx in update.range {
+        self.updates.push(Update { old_register, new_register, range });
+    }
+
+    fn finalize(&mut self, instructions: &mut Vec<Instruction>, _constants: &mut Vec<Primitive>) {
+        for update in self.updates.iter_mut() {
+            for idx in &mut update.range {
                 match instructions[idx].try_replace_register(update.old_register, update.new_register) {
                     Some(ins) => instructions[idx] = ins,
                     _ => continue,
                 };
             };
         };
-
-        Ok(())
     }
 }
 
@@ -49,12 +66,10 @@ impl RegisterAllocator {
 mod tests {
     use super::*;
     use crate::{
+        error::Result,
         ast::Ast,
         utils::{parse, test_instructions},
-        compiler::{
-            Compiler,
-            Bytecode,
-        },
+        compiler::Compiler,
     };
 
     #[test]
@@ -72,7 +87,6 @@ mod tests {
         let mut compiler = Compiler::new();
         compiler.compile(Ast::Prog(program))?;
 
-        let Bytecode { mut instructions, .. } = compiler.bytecode();
         let original = vec![
             // let a = 0;
             load!(0, 0),
@@ -94,7 +108,7 @@ mod tests {
             add!(6, 3, 4),
         ];
 
-        test_instructions(&original, &instructions);
+        test_instructions(&original, &compiler.bytecode().instructions);
 
         let reallocated = vec![
             // let a = 0;
@@ -117,8 +131,9 @@ mod tests {
             add!(1, 0, 2), // Can reuse r1 because b is no longer used.
         ];
 
-        RegisterAllocator::allocate(&mut instructions)?;
-        test_instructions(&reallocated, &instructions);
+        compiler.optimize(&mut RegisterAllocator::new())?;
+
+        test_instructions(&reallocated, &compiler.bytecode().instructions);
 
         Ok(())
     }
