@@ -13,10 +13,10 @@ use kinsley::{
 const FILE_MSG: &'static str = r#"
 Error: file not found.
 Usage:
-    cargo run --bin=register_reallocator -- FILEPATH
+    cargo run --bin=register_allocator -- FILEPATH
 
 Example(s):
-    cargo run --bin=register_reallocator -- examples/register_reallocator.kin
+    cargo run --bin=register_allocator -- examples/register_allocator.kin
 "#;
 
 fn main() -> Result<()> {
