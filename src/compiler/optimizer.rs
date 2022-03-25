@@ -8,7 +8,7 @@ use crate::{
 
 
 pub trait Optimizer {
-    fn optimize(&mut self, current_index: usize, instructions: &mut [Instruction], constants: &mut [Primitive]);
+    fn optimize(&mut self, current_index: usize, instructions: &mut [Instruction], constants: &mut Vec<Primitive>);
     fn finalize(&mut self, instructions: &mut Vec<Instruction>, constants: &mut Vec<Primitive>);
 }
 

@@ -31,7 +31,7 @@ impl RegisterAllocator {
 }
 
 impl Optimizer for RegisterAllocator {
-    fn optimize(&mut self, current_index: usize, instructions: &mut [Instruction], _constants: &mut [Primitive]) {
+    fn optimize(&mut self, current_index: usize, instructions: &mut [Instruction], _constants: &mut Vec<Primitive>) {
         if self.live_ranges.is_none() {
             self.live_ranges = Some(LiveRanges::from(instructions.as_ref()));
         };
@@ -52,6 +52,7 @@ impl Optimizer for RegisterAllocator {
 
     fn finalize(&mut self, instructions: &mut Vec<Instruction>, _constants: &mut Vec<Primitive>) {
         for update in self.updates.iter_mut() {
+            println!("{:?}", update);
             for idx in &mut update.range {
                 match instructions[idx].try_replace_register(update.old_register, update.new_register) {
                     Some(ins) => instructions[idx] = ins,
@@ -129,6 +130,44 @@ mod tests {
             add!(3, 1, 0),
             // c + d;
             add!(1, 0, 2), // Can reuse r1 because b is no longer used.
+        ];
+
+        compiler.optimize(&mut RegisterAllocator::new())?;
+
+        test_instructions(&reallocated, &compiler.bytecode().instructions);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_simple_allocator() -> Result<()> {
+        let input = r#"
+            let a = 0;
+            let b = 1;
+        "#.to_string();
+
+        let program = parse(input)?;
+        let mut compiler = Compiler::new();
+        compiler.compile(Ast::Prog(program))?;
+
+        let original = vec![
+            // let a = 0;
+            load!(0, 0),
+            set_global!(0, 0),
+            // let b = 1;
+            load!(1, 1),
+            set_global!(1, 1),
+        ];
+
+        test_instructions(&original, &compiler.bytecode().instructions);
+
+        let reallocated = vec![
+            // let a = 0;
+            load!(0, 0),
+            set_global!(0, 0),
+            // let b = 1;
+            load!(0, 1),
+            set_global!(1, 0),
         ];
 
         compiler.optimize(&mut RegisterAllocator::new())?;

@@ -17,6 +17,16 @@ pub struct LiveRanges {
 }
 
 impl LiveRanges {
+    pub fn is_not_used_again(&self, reg: Register, idx: usize) -> bool {
+        if let Some(ranges) = self.map.get(&reg) {
+            ranges
+                .iter()
+                .any(|range| *range.start() == idx && *range.end() == idx)
+        } else {
+            false
+        }
+    }
+
     pub fn reassign(&mut self, reg: Register, idx: usize) -> Option<(Register, RangeInclusive<usize>)> {
         let ranges = self.map.get(&reg)?;
         let range_idx = ranges
@@ -75,6 +85,11 @@ impl From<&[Instruction]> for LiveRanges {
                         if let Some(range) = vec.pop() { vec.push(*range.start()..=idx); };
                     };
                     if let Some(vec) = live_ranges.get_mut(b) {
+                        if let Some(range) = vec.pop() { vec.push(*range.start()..=idx); };
+                    };
+                },
+                SetGlobal { src, .. } => {
+                    if let Some(vec) = live_ranges.get_mut(src) {
                         if let Some(range) = vec.pop() { vec.push(*range.start()..=idx); };
                     };
                 },
@@ -152,7 +167,7 @@ mod tests {
         //                         register ----v  v---- instruction index
         let (reg, range) = live_ranges.reassign(3, 5).unwrap();
         assert_eq!(0, reg);
-        assert_eq!(5..=5, range);
+        assert_eq!(5..=6, range);
 
         let (reg, range) = live_ranges.reassign(6, 9).unwrap();
         assert_eq!(2, reg);
@@ -189,7 +204,7 @@ mod tests {
         let expected = vec![
             vec![0..=4, 5..=9],
             vec![2..=9, 10..=10],
-            vec![4..=4, 7..=7],
+            vec![4..=4, 7..=8],
             vec![9..=10],
         ];
 
@@ -234,6 +249,31 @@ mod tests {
             vec![10..=10],
         ];
 
+        let actual: Vec<Vec<RangeInclusive<usize>>> = LiveRanges::from(ins.as_slice())
+            .map
+            .values()
+            .cloned()
+            .collect();
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn test_ranges_load_and_set() {
+        let ins = vec![
+            // let a = 0;
+            load!(0, 0),
+            set_global!(0, 0),
+            // let b = 1;
+            load!(1, 1),
+            set_global!(1, 1),
+        ];
+
+        let expected = vec![
+            vec![0..=1],
+            vec![2..=3],
+        ];
+
+        println!("{}", LiveRanges::from(ins.as_slice()));
         let actual: Vec<Vec<RangeInclusive<usize>>> = LiveRanges::from(ins.as_slice())
             .map
             .values()

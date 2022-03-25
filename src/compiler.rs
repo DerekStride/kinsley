@@ -523,4 +523,57 @@ mod tests {
 
         run_compiler_tests(tests)
     }
+
+    #[test]
+    fn test_optimizations() -> Result<()> {
+        let tests = vec![
+            // TestCase {
+                // input: r#"
+                //     let one = 1;
+                //     let two = 2;
+                // "#.to_string(),
+                // expected_constants: vec![kint!(1), kint!(2)],
+                // expected_instructions: vec![
+                //     load!(0, 0),
+                //     set_global!(0, 0),
+                //     load!(0, 1),
+                //     set_global!(1, 0),
+                // ],
+            // },
+            TestCase {
+                input: r#"
+                    let a = 0;
+                    let b = 1;
+                    a + b;
+                    let c = 2;
+                    let d = 3;
+                    b + c;
+                    c + d;
+                "#.to_string(),
+                expected_constants: vec![kint!(1), kint!(2)],
+                expected_instructions: vec![
+                    load!(0, 0),
+                    set_global!(0, 0),
+                    load!(1, 1),
+                    set_global!(1, 1),
+                    add!(2, 0, 1),
+                ],
+            },
+        ];
+
+        for tt in tests {
+            let program = parse(tt.input)?;
+            let mut compiler = Compiler::new();
+            compiler.compile(Ast::Prog(program))?;
+            compiler.optimize(&mut optimizers::NumericConstantPropagation::new())?;
+            compiler.optimize(&mut optimizers::RegisterAllocator::new())?;
+
+            let bytecode = compiler.bytecode();
+
+            test_instructions(&tt.expected_instructions, &bytecode.instructions);
+            test_constants(&tt.expected_constants, &bytecode.constants);
+        };
+
+        Ok(())
+    }
 }
