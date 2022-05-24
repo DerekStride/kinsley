@@ -34,11 +34,8 @@ impl Optimizer for UnusedInstructionRemoval {
             Some(x) => x,
             None => return,
         };
-        println!("{}", live_ranges);
-        println!("reg: {}", old_register);
 
         if live_ranges.is_not_used_again(old_register, current_index) {
-            println!("Not used again. idx: {}, reg: {}", current_index, old_register);
             self.unused_instructions.push(current_index);
         };
     }
@@ -76,7 +73,6 @@ mod tests {
         compiler.compile(Ast::Prog(program))?;
 
         let original = vec![
-            load!(7, 7),
             // let a = 0;
             load!(0, 0),
             set_global!(0, 0),

@@ -273,7 +273,6 @@ mod tests {
             vec![2..=3],
         ];
 
-        println!("{}", LiveRanges::from(ins.as_slice()));
         let actual: Vec<Vec<RangeInclusive<usize>>> = LiveRanges::from(ins.as_slice())
             .map
             .values()

@@ -525,21 +525,21 @@ mod tests {
     }
 
     #[test]
-    fn test_optimizations() -> Result<()> {
+    fn test_numeric_and_register_allocator_optimizations() -> Result<()> {
         let tests = vec![
-            // TestCase {
-                // input: r#"
-                //     let one = 1;
-                //     let two = 2;
-                // "#.to_string(),
-                // expected_constants: vec![kint!(1), kint!(2)],
-                // expected_instructions: vec![
-                //     load!(0, 0),
-                //     set_global!(0, 0),
-                //     load!(0, 1),
-                //     set_global!(1, 0),
-                // ],
-            // },
+            TestCase {
+                input: r#"
+                    let one = 1;
+                    let two = 2;
+                "#.to_string(),
+                expected_constants: vec![kint!(1), kint!(2)],
+                expected_instructions: vec![
+                    load!(0, 0),
+                    set_global!(0, 0),
+                    load!(0, 1),
+                    set_global!(1, 0),
+                ],
+            },
             TestCase {
                 input: r#"
                     let a = 0;
@@ -550,13 +550,26 @@ mod tests {
                     b + c;
                     c + d;
                 "#.to_string(),
-                expected_constants: vec![kint!(1), kint!(2)],
+                expected_constants: vec![kint!(0), kint!(1), kint!(2), kint!(3), kint!(1), kint!(3), kint!(5)],
                 expected_instructions: vec![
+                    // let a = 0;
                     load!(0, 0),
                     set_global!(0, 0),
-                    load!(1, 1),
-                    set_global!(1, 1),
-                    add!(2, 0, 1),
+                    // let b = 1;
+                    load!(0, 1),
+                    set_global!(1, 0),
+                    // a + b;
+                    load!(0, 4),
+                    // let c = 2;
+                    load!(0, 2),
+                    set_global!(2, 0),
+                    // let d = 3;
+                    load!(0, 3),
+                    set_global!(3, 0),
+                    // b + c;
+                    load!(0, 5),
+                    // c + d;
+                    load!(0, 6),
                 ],
             },
         ];
@@ -566,6 +579,96 @@ mod tests {
             let mut compiler = Compiler::new();
             compiler.compile(Ast::Prog(program))?;
             compiler.optimize(&mut optimizers::NumericConstantPropagation::new())?;
+            compiler.optimize(&mut optimizers::RegisterAllocator::new())?;
+
+            let bytecode = compiler.bytecode();
+
+            test_instructions(&tt.expected_instructions, &bytecode.instructions);
+            test_constants(&tt.expected_constants, &bytecode.constants);
+        };
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_all_optimizations() -> Result<()> {
+        let tests = vec![
+            TestCase {
+                input: r#"
+                    let one = 1;
+                    let two = 2;
+                "#.to_string(),
+                expected_constants: vec![kint!(1), kint!(2)],
+                expected_instructions: vec![
+                    load!(0, 0),
+                    set_global!(0, 0),
+                    load!(0, 1),
+                    set_global!(1, 0),
+                ],
+            },
+            TestCase {
+                input: r#"
+                    let a = 0;
+                    let b = 1;
+                    a + b;
+                    let c = 2;
+                    let d = 3;
+                    b + c;
+                    c + d;
+                "#.to_string(),
+                expected_constants: vec![kint!(0), kint!(1), kint!(2), kint!(3), kint!(1), kint!(3), kint!(5)],
+                expected_instructions: vec![
+                    // let a = 0;
+                    load!(0, 0),
+                    set_global!(0, 0),
+                    // let b = 1;
+                    load!(0, 1),
+                    set_global!(1, 0),
+                    // let c = 2;
+                    load!(0, 2),
+                    set_global!(2, 0),
+                    // let d = 3;
+                    load!(0, 3),
+                    set_global!(3, 0),
+                ],
+            },
+            TestCase {
+                input: r#"
+                    let a = 0;
+                    let b = 1;
+                    a + b;
+                    let c = 2;
+                    let d = 3;
+                    let e = b + c;
+                    c + d;
+                "#.to_string(),
+                expected_constants: vec![kint!(0), kint!(1), kint!(2), kint!(3), kint!(1), kint!(3), kint!(5)],
+                expected_instructions: vec![
+                    // let a = 0;
+                    load!(0, 0),
+                    set_global!(0, 0),
+                    // let b = 1;
+                    load!(0, 1),
+                    set_global!(1, 0),
+                    // let c = 2;
+                    load!(0, 2),
+                    set_global!(2, 0),
+                    // let d = 3;
+                    load!(0, 3),
+                    set_global!(3, 0),
+                    // let e = 3;
+                    load!(0, 5),
+                    set_global!(4, 0),
+                ],
+            },
+        ];
+
+        for tt in tests {
+            let program = parse(tt.input)?;
+            let mut compiler = Compiler::new();
+            compiler.compile(Ast::Prog(program))?;
+            compiler.optimize(&mut optimizers::NumericConstantPropagation::new())?;
+            compiler.optimize(&mut optimizers::UnusedInstructionRemoval::new())?;
             compiler.optimize(&mut optimizers::RegisterAllocator::new())?;
 
             let bytecode = compiler.bytecode();

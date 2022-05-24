@@ -52,7 +52,6 @@ impl Optimizer for RegisterAllocator {
 
     fn finalize(&mut self, instructions: &mut Vec<Instruction>, _constants: &mut Vec<Primitive>) {
         for update in self.updates.iter_mut() {
-            println!("{:?}", update);
             for idx in &mut update.range {
                 match instructions[idx].try_replace_register(update.old_register, update.new_register) {
                     Some(ins) => instructions[idx] = ins,
