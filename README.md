@@ -102,3 +102,64 @@ Instructions:
 Constants:
 13
 -13
+```
+
+## Unused Instruction Removal
+
+This optimization removes instructions that are not used later on in the program. You can see it in action with the
+`bin/unused_instruction_removal.rs` program.
+
+```
+➜ kinsley cat examples/unused_instruction_removal.kin
+let a = 0;
+let b = 1;
+a + b;              // Unused
+let c = 2;
+let d = 3;
+let e = b + c;
+c + d;              // Unused
+
+➜ kinsley cargo run --bin=unused_instruction_removal -- examples/unused_instruction_removal.kin
+Before removal:
+Bytecode:
+
+Instructions:
+0: load!(0, 0)
+1: set_global!(0, 0)
+2: load!(1, 1)
+3: set_global!(1, 1)
+4: add!(2, 0, 1)
+5: load!(3, 2)
+6: set_global!(2, 3)
+7: load!(4, 3)
+8: set_global!(3, 4)
+9: add!(5, 1, 3)
+10: set_global!(4, 5)
+11: add!(6, 3, 4)
+
+Constants:
+0
+1
+2
+3
+After removal:
+Bytecode:
+
+Instructions:
+0: load!(0, 0)
+1: set_global!(0, 0)
+2: load!(1, 1)
+3: set_global!(1, 1)
+4: load!(3, 2)
+5: set_global!(2, 3)
+6: load!(4, 3)
+7: set_global!(3, 4)
+8: add!(5, 1, 3)
+9: set_global!(4, 5)
+
+Constants:
+0
+1
+2
+3
+```
