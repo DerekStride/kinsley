@@ -1,7 +1,7 @@
 use crate::{
     object::{Integer, Primitive},
     compiler::{
-        optimizer::{self, Optimizer},
+        optimizer::Optimizer,
         code::{
             Instruction,
             Instruction::*,
@@ -107,8 +107,7 @@ impl Optimizer for NumericConstantPropagation {
         };
     }
 
-    fn finalize(&mut self, _instructions: &mut Vec<Instruction>, constants: &mut Vec<Primitive>) {
-    }
+    fn finalize(&mut self, _instructions: &mut Vec<Instruction>, _constants: &mut Vec<Primitive>) {}
 }
 
 fn find_source(instructions: &[Instruction], register: Register) -> Option<Instruction> {

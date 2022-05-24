@@ -1,7 +1,7 @@
 use crate::{
-    object::{Integer, Primitive},
+    object::Primitive,
     compiler::{
-        optimizer::{self, Optimizer},
+        optimizer::Optimizer,
         code::Instruction,
         LiveRanges,
     },
@@ -9,7 +9,6 @@ use crate::{
 
 pub struct UnusedInstructionRemoval {
     unused_instructions: Vec<usize>,
-    unused_constants: Vec<usize>,
     live_ranges: Option<LiveRanges>,
 }
 
@@ -17,14 +16,13 @@ impl UnusedInstructionRemoval {
     pub fn new() -> Self {
         Self {
             unused_instructions: Vec::new(),
-            unused_constants: Vec::new(),
             live_ranges: None,
         }
     }
 }
 
 impl Optimizer for UnusedInstructionRemoval {
-    fn optimize(&mut self, current_index: usize, instructions: &mut [Instruction], constants: &mut Vec<Primitive>) {
+    fn optimize(&mut self, current_index: usize, instructions: &mut [Instruction], _constants: &mut Vec<Primitive>) {
         if self.live_ranges.is_none() {
             self.live_ranges = Some(LiveRanges::from(instructions.as_ref()));
         };
@@ -40,7 +38,7 @@ impl Optimizer for UnusedInstructionRemoval {
         };
     }
 
-    fn finalize(&mut self, instructions: &mut Vec<Instruction>, constants: &mut Vec<Primitive>) {
+    fn finalize(&mut self, instructions: &mut Vec<Instruction>, _constants: &mut Vec<Primitive>) {
         for idx in self.unused_instructions.iter().rev() {
             instructions.remove(*idx);
         };
