@@ -1,4 +1,11 @@
-use std::iter::Peekable;
+use std::{
+    iter::Peekable,
+    fs::File,
+    io::{
+        Read,
+        BufReader,
+    },
+};
 
 use crate::{
     ast::*,
@@ -56,6 +63,19 @@ pub fn parse_stream<I: Iterator<Item = u8>>(stream: Peekable<I>) -> Result<Progr
     check_parser_errors(parser)?;
 
     Ok(program)
+}
+
+pub fn parse_file(filepath: &String) -> Result<Ast> {
+    let file = File::open(filepath)?;
+    let buf_reader = BufReader::new(file);
+    let stream = buf_reader
+        .bytes()
+        .map(std::result::Result::unwrap)
+        .peekable();
+
+    let program = parse_stream(stream)?;
+
+    Ok(Ast::Prog(program))
 }
 
 pub fn check_parser_errors<I: Iterator<Item = Token>>(p: Parser<I>) -> Result<()> {

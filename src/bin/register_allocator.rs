@@ -5,17 +5,18 @@ use kinsley::{
     utils::parse_file,
     compiler::{
         Compiler,
-        optimizers::NumericConstantPropagation,
+        LiveRanges,
+        optimizers::RegisterAllocator,
     },
 };
 
 const FILE_MSG: &'static str = r#"
 Error: file not found.
 Usage:
-    cargo run --bin=constant_propagation -- FILEPATH
+    cargo run --bin=register_allocator -- FILEPATH
 
 Example(s):
-    cargo run --bin=constant_propagation -- examples/constant_propagation.kin
+    cargo run --bin=register_allocator -- examples/register_allocator.kin
 "#;
 
 fn main() -> Result<()> {
@@ -35,12 +36,13 @@ fn main() -> Result<()> {
     let mut compiler = Compiler::new();
     compiler.compile(program)?;
 
-    println!("Before Constant Propagation:\n{}", compiler.bytecode());
+    let live_ranges = LiveRanges::from(compiler.bytecode().instructions.as_slice());
+    println!("Before reassignment:\n{}", live_ranges);
 
-    compiler.optimize(&mut NumericConstantPropagation::new())?;
+    compiler.optimize(&mut RegisterAllocator::new())?;
 
-    println!("After Constant Propagation:\n{}", compiler.bytecode());
+    let live_ranges = LiveRanges::from(compiler.bytecode().instructions.as_slice());
+    println!("After reassignment:\n{}", live_ranges);
 
     Ok(())
 }
-

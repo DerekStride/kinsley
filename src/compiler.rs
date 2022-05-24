@@ -17,7 +17,6 @@ mod symbol_table;
 mod bytecode;
 mod compilation_scope;
 mod emitted_instruction;
-mod register_allocator;
 mod live_ranges;
 pub mod optimizer;
 pub mod optimizers;
@@ -28,7 +27,6 @@ pub type SymbolTable = symbol_table::SymbolTable;
 pub type Scope = symbol_table::Scope;
 pub type Symbol = symbol_table::Symbol;
 pub type CompilationScope = compilation_scope::CompilationScope;
-pub type RegisterAllocator = register_allocator::RegisterAllocator;
 pub type LiveRanges = live_ranges::LiveRanges;
 
 pub struct Compiler {
@@ -159,38 +157,15 @@ impl Compiler {
     }
 
     pub fn optimize<T: Optimizer>(&mut self, optimizer: &mut T) -> Result<()> {
-        let mut changes = Vec::new();
-        let mut ins_to_remove = Vec::new();
-        let mut con_to_remove = Vec::new();
         let scope = self.scopes.last_mut().unwrap();
         let instructions = &mut scope.instructions;
         let constants = &mut self.constants;
 
         for idx in 0..instructions.len() {
-            if let Some(mut change) = optimizer.optimize(idx, instructions, constants) {
-                while let Some((pos, ins)) = change.instructions_to_replace.pop() {
-                    instructions[pos] = ins;
-                };
-                while let Some((pos, c)) = change.constants_to_replace.pop() {
-                    constants[pos] = c;
-                };
-
-                changes.push(change);
-            };
+            optimizer.optimize(idx, instructions, constants);
         };
 
-        for mut change in changes {
-            ins_to_remove.append(&mut change.instructions_to_remove);
-            con_to_remove.append(&mut change.constants_to_remove);
-        };
-
-        ins_to_remove.sort();
-        con_to_remove.sort();
-        for idx in ins_to_remove.iter().rev() {
-            instructions.remove(*idx);
-        };
-
-        optimizer::remap_constants(instructions, constants, &con_to_remove);
+        optimizer.finalize(instructions, constants);
 
         Ok(())
     }
@@ -547,5 +522,161 @@ mod tests {
         ];
 
         run_compiler_tests(tests)
+    }
+
+    #[test]
+    fn test_numeric_and_register_allocator_optimizations() -> Result<()> {
+        let tests = vec![
+            TestCase {
+                input: r#"
+                    let one = 1;
+                    let two = 2;
+                "#.to_string(),
+                expected_constants: vec![kint!(1), kint!(2)],
+                expected_instructions: vec![
+                    load!(0, 0),
+                    set_global!(0, 0),
+                    load!(0, 1),
+                    set_global!(1, 0),
+                ],
+            },
+            TestCase {
+                input: r#"
+                    let a = 0;
+                    let b = 1;
+                    a + b;
+                    let c = 2;
+                    let d = 3;
+                    b + c;
+                    c + d;
+                "#.to_string(),
+                expected_constants: vec![kint!(0), kint!(1), kint!(2), kint!(3), kint!(1), kint!(3), kint!(5)],
+                expected_instructions: vec![
+                    // let a = 0;
+                    load!(0, 0),
+                    set_global!(0, 0),
+                    // let b = 1;
+                    load!(0, 1),
+                    set_global!(1, 0),
+                    // a + b;
+                    load!(0, 4),
+                    // let c = 2;
+                    load!(0, 2),
+                    set_global!(2, 0),
+                    // let d = 3;
+                    load!(0, 3),
+                    set_global!(3, 0),
+                    // b + c;
+                    load!(0, 5),
+                    // c + d;
+                    load!(0, 6),
+                ],
+            },
+        ];
+
+        for tt in tests {
+            let program = parse(tt.input)?;
+            let mut compiler = Compiler::new();
+            compiler.compile(Ast::Prog(program))?;
+            compiler.optimize(&mut optimizers::NumericConstantPropagation::new())?;
+            compiler.optimize(&mut optimizers::RegisterAllocator::new())?;
+
+            let bytecode = compiler.bytecode();
+
+            test_instructions(&tt.expected_instructions, &bytecode.instructions);
+            test_constants(&tt.expected_constants, &bytecode.constants);
+        };
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_all_optimizations() -> Result<()> {
+        let tests = vec![
+            TestCase {
+                input: r#"
+                    let one = 1;
+                    let two = 2;
+                "#.to_string(),
+                expected_constants: vec![kint!(1), kint!(2)],
+                expected_instructions: vec![
+                    load!(0, 0),
+                    set_global!(0, 0),
+                    load!(0, 1),
+                    set_global!(1, 0),
+                ],
+            },
+            TestCase {
+                input: r#"
+                    let a = 0;
+                    let b = 1;
+                    a + b;
+                    let c = 2;
+                    let d = 3;
+                    b + c;
+                    c + d;
+                "#.to_string(),
+                expected_constants: vec![kint!(0), kint!(1), kint!(2), kint!(3), kint!(1), kint!(3), kint!(5)],
+                expected_instructions: vec![
+                    // let a = 0;
+                    load!(0, 0),
+                    set_global!(0, 0),
+                    // let b = 1;
+                    load!(0, 1),
+                    set_global!(1, 0),
+                    // let c = 2;
+                    load!(0, 2),
+                    set_global!(2, 0),
+                    // let d = 3;
+                    load!(0, 3),
+                    set_global!(3, 0),
+                ],
+            },
+            TestCase {
+                input: r#"
+                    let a = 0;
+                    let b = 1;
+                    a + b;
+                    let c = 2;
+                    let d = 3;
+                    let e = b + c;
+                    c + d;
+                "#.to_string(),
+                expected_constants: vec![kint!(0), kint!(1), kint!(2), kint!(3), kint!(1), kint!(3), kint!(5)],
+                expected_instructions: vec![
+                    // let a = 0;
+                    load!(0, 0),
+                    set_global!(0, 0),
+                    // let b = 1;
+                    load!(0, 1),
+                    set_global!(1, 0),
+                    // let c = 2;
+                    load!(0, 2),
+                    set_global!(2, 0),
+                    // let d = 3;
+                    load!(0, 3),
+                    set_global!(3, 0),
+                    // let e = 3;
+                    load!(0, 5),
+                    set_global!(4, 0),
+                ],
+            },
+        ];
+
+        for tt in tests {
+            let program = parse(tt.input)?;
+            let mut compiler = Compiler::new();
+            compiler.compile(Ast::Prog(program))?;
+            compiler.optimize(&mut optimizers::NumericConstantPropagation::new())?;
+            compiler.optimize(&mut optimizers::UnusedInstructionRemoval::new())?;
+            compiler.optimize(&mut optimizers::RegisterAllocator::new())?;
+
+            let bytecode = compiler.bytecode();
+
+            test_instructions(&tt.expected_instructions, &bytecode.instructions);
+            test_constants(&tt.expected_constants, &bytecode.constants);
+        };
+
+        Ok(())
     }
 }
