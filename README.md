@@ -1,5 +1,7 @@
 # kinsley
 
+[![CI](https://github.com/DerekStride/kinsley/actions/workflows/rust.yml/badge.svg)](https://github.com/DerekStride/kinsley/actions/workflows/rust.yml)
+
 As a follow up to my implmentation of [monkey](https://github.com/derekstride/monkey) in Rust, I've branched out to build
 my own language implmentation. The focus of this project isn't to get a working language with features x, y, and z. It's
 to explore compiler and virtual machine optimization. I would like each aspect of the features I implement to be
