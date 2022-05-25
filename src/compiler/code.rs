@@ -41,7 +41,49 @@ impl Instruction {
     // +----------------+----------------------+-----------------------+------------------------+
     // | Opcode         |           A          |           B           |           C            |
     // +----------------+----------------------+-----------------------+------------------------+
-    pub fn encode(&self) -> u32 { 0 }
+    pub fn encode(&self) -> u32 {
+        match self {
+            Halt => 0,
+            Move { dest, src } => 1u32 << 24 | (*dest as u32) << 8 | *src as u32,
+            Load { dest, constant } => 2u32 << 24 | (*dest as u32) << 16 | *constant as u32,
+            // LoadBool { dest: Register, bool: Constant },
+            // Add { dest: Register, a: Register, b: Register },
+            // Sub { dest: Register, a: Register, b: Register },
+            // Mul { dest: Register, a: Register, b: Register },
+            // Div { dest: Register, a: Register, b: Register },
+            // Neg { dest: Register, src: Register },
+            // Lt { dest: Register, a: Register, b: Register },
+            // Le { dest: Register, a: Register, b: Register },
+            // Eq { dest: Register, a: Register, b: Register },
+            // NotEq { dest: Register, a: Register, b: Register },
+            SetGlobal { dest, src } => 13u32 << 24 | (*dest as u32) | (*src as u32) << 16,
+            // GetGlobal { dest: Register, src: Constant },
+            // Jmp { target: JumpTarget },
+            _ => 0
+        }
+    }
+
+    pub fn decode(instruction: u32) -> Option<Self> {
+        let opcode = (instruction & 0xFF00_0000) >> 24;
+        let ins = match opcode {
+            0 => Halt,
+            1 => {
+                let dest: u8 = ((instruction & 0x0000_FF00) >> 8).try_into().unwrap();
+                let src: u8 = (instruction & 0x0000_00FF).try_into().unwrap();
+
+                Move { dest, src }
+            },
+            2 => {
+                let dest: u8 = ((instruction & 0x00FF_0000) >> 16).try_into().unwrap();
+                let constant: u16 = (instruction & 0x0000_FFFF).try_into().unwrap();
+
+                Load { dest, constant }
+            },
+            _ => return None,
+        };
+
+        Some(ins)
+    }
 
     pub fn last_dest_register(&self) -> Option<Register> {
         let reg = match self {
@@ -166,6 +208,13 @@ impl fmt::Display for Instruction {
 }
 
 #[macro_export]
+macro_rules! mov {
+    ($dest:expr, $src:expr) => (
+        $crate::compiler::code::Instruction::Move { dest: $dest, src: $src }
+    )
+}
+
+#[macro_export]
 macro_rules! load {
     ($dest:expr, $constant:expr) => (
         $crate::compiler::code::Instruction::Load { dest: $dest, constant: $constant }
@@ -265,7 +314,21 @@ macro_rules! not_eq {
 
 #[cfg(test)]
 mod tests {
-    use super::Instruction::*;
+    use super::Instruction::{self, *};
+
+    fn assert_encoded(expected: u32, actual: Instruction) {
+        assert_eq!(
+            expected,
+            actual.encode(),
+            "\nexpedted: {:x}\nactual: {:x}",
+            expected,
+            actual.encode(),
+        );
+    }
+
+    fn decode(ins: u32) -> Instruction {
+        Instruction::decode(ins).unwrap()
+    }
 
     #[test]
     fn test_load() {
@@ -273,5 +336,19 @@ mod tests {
             Load { dest: 0, constant: 65534 },
             load!(0, 65534),
         );
+    }
+
+    #[test]
+    fn test_encode_decode() {
+        let pairs = vec![
+            (0, Halt),
+            (0x0100_FECD, mov!(254, 205)),
+            (0x0204_FFFE, load!(4, 65534)),
+        ];
+
+        for (value, ins) in pairs {
+            assert_encoded(value, ins);
+            assert_eq!(ins, decode(value));
+        }
     }
 }
