@@ -10,6 +10,30 @@ Some guiding principles:
 1. Explore - Prefer diving deep into a subject.
 2. Performance - Prefer diving into optimizations over features.
 
+The project is named after my daughter, Kinsley. I've named the compiler `kinc` pronounced `KIN-SEE`. Kinsley source
+files have the `.kin` extension name.
+
+You can run the compiler via the `bin/kinc.rs` program. The compiler implements a variety of optimizations such as
+Register allocation, constant propagation, and unused instruction removal.
+
+```
+Usage:
+    cargo run --bin=kinc -- FILEPATH
+
+➜ kinsley cargo run --bin=kinc examples/constant_propagation.kin
+Bytecode:
+
+Instructions:
+0: load!(0, 0)
+1: set_global!(0, 0)
+2: load!(0, 1)
+3: set_global!(1, 0)
+
+Constants:
+13
+-13
+```
+
 ## Register Allocation
 
 For an example of the types of problems I've been exploring check out this blog post on [Register Allocation by Chris
@@ -47,7 +71,6 @@ After reassignment:
   8: set_global!(3, 2)          *   *   *
   9: add!(3, 1, 0)              *   *   *   *
  10: add!(1, 0, 2)              *   *   *
-
 ```
 
 ## Constant Propagation
@@ -106,7 +129,7 @@ Constants:
 
 ## Unused Instruction Removal
 
-This optimization removes instructions that are not used later on in the program. You can see it in action with the
+This optimization removes instructions that are not used by the program. You can see it in action with the
 `bin/unused_instruction_removal.rs` program.
 
 ```
@@ -121,29 +144,22 @@ c + d;              // Unused
 
 ➜ kinsley cargo run --bin=unused_instruction_removal -- examples/unused_instruction_removal.kin
 Before removal:
-Bytecode:
 
 Instructions:
 0: load!(0, 0)
 1: set_global!(0, 0)
 2: load!(1, 1)
 3: set_global!(1, 1)
-4: add!(2, 0, 1)
+4: add!(2, 0, 1)        // Remove
 5: load!(3, 2)
 6: set_global!(2, 3)
 7: load!(4, 3)
 8: set_global!(3, 4)
 9: add!(5, 1, 3)
 10: set_global!(4, 5)
-11: add!(6, 3, 4)
+11: add!(6, 3, 4)       // Remove
 
-Constants:
-0
-1
-2
-3
 After removal:
-Bytecode:
 
 Instructions:
 0: load!(0, 0)
@@ -156,10 +172,4 @@ Instructions:
 7: set_global!(3, 4)
 8: add!(5, 1, 3)
 9: set_global!(4, 5)
-
-Constants:
-0
-1
-2
-3
 ```
