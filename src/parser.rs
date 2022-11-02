@@ -58,6 +58,7 @@ impl<I: Iterator<Item = Token>> Parser<I> {
         p.register_infix(TokenType::Plus, Self::parse_infix_expression);
         p.register_infix(TokenType::Minus, Self::parse_infix_expression);
         p.register_infix(TokenType::Slash, Self::parse_infix_expression);
+        p.register_infix(TokenType::Percent, Self::parse_infix_expression);
         p.register_infix(TokenType::Asterisk, Self::parse_infix_expression);
         p.register_infix(TokenType::Eq, Self::parse_infix_expression);
         p.register_infix(TokenType::NotEq, Self::parse_infix_expression);
@@ -751,6 +752,7 @@ mod tests {
             ("5 - 5;".to_string(), int_node!(5), "-".to_string(), int_node!(5)),
             ("5 * 5;".to_string(), int_node!(5), "*".to_string(), int_node!(5)),
             ("5 / 5;".to_string(), int_node!(5), "/".to_string(), int_node!(5)),
+            ("5 % 2;".to_string(), int_node!(5), "%".to_string(), int_node!(2)),
             ("5 > 5;".to_string(), int_node!(5), ">".to_string(), int_node!(5)),
             ("5 < 5;".to_string(), int_node!(5), "<".to_string(), int_node!(5)),
             ("5 >= 5;".to_string(), int_node!(5), ">=".to_string(), int_node!(5)),

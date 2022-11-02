@@ -17,6 +17,7 @@ pub enum TokenType {
     Bang,
     Asterisk,
     Slash,
+    Percent,
     Dot,
 
     Lt,

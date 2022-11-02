@@ -108,6 +108,7 @@ impl Compiler {
                     "-" => self.emit(Sub { dest, a, b }),
                     "*" => self.emit(Mul { dest, a, b }),
                     "/" => self.emit(Div { dest, a, b }),
+                    "%" => self.emit(Modulo { dest, a, b }),
                     "<" => self.emit(Lt { dest, a, b }),
                     "<=" => self.emit(Le { dest, a, b }),
                     ">" => self.emit(Lt { dest, a: b, b: a }),
@@ -473,6 +474,101 @@ mod tests {
                     load_true!(0),
                     load_false!(1),
                     not_eq!(2, 0, 1),
+                ],
+            },
+        ];
+
+        run_compiler_tests(tests)
+    }
+
+    #[test]
+    fn test_arithmetic_expressiongs() -> Result<()> {
+        let tests = vec![
+            TestCase {
+                input: "1 + 2 * 3;".to_string(),
+                expected_constants: vec![kint!(1), kint!(2), kint!(3)],
+                expected_instructions: vec![
+                    load!(0, 0),
+                    load!(1, 1),
+                    load!(2, 2),
+                    mul!(3, 1, 2),
+                    add!(4, 0, 3),
+                ],
+            },
+            TestCase {
+                input: "(1 + 2) * 3;".to_string(),
+                expected_constants: vec![kint!(1), kint!(2), kint!(3)],
+                expected_instructions: vec![
+                    load!(0, 0),
+                    load!(1, 1),
+                    add!(2, 0, 1),
+                    load!(3, 2),
+                    mul!(4, 2, 3),
+                ],
+            },
+        ];
+
+        run_compiler_tests(tests)
+    }
+
+    #[test]
+    fn test_arithmetic_divison_by_zero() -> Result<()> {
+        let tests = vec![
+            TestCase {
+                input: "1 / 0;".to_string(),
+                expected_constants: vec![kint!(1), kint!(0)],
+                expected_instructions: vec![
+                    load!(0, 0),
+                    load!(1, 1),
+                    div!(2, 0, 1),
+                ],
+            },
+            TestCase {
+                input: "1 % 0;".to_string(),
+                expected_constants: vec![kint!(1), kint!(0)],
+                expected_instructions: vec![
+                    load!(0, 0),
+                    load!(1, 1),
+                    modulo!(2, 0, 1),
+                ],
+            },
+            TestCase {
+                input: "1 / (1 - 1);".to_string(),
+                expected_constants: vec![kint!(1), kint!(1), kint!(1)],
+                expected_instructions: vec![
+                    load!(0, 0),
+                    load!(1, 1),
+                    load!(2, 2),
+                    sub!(3, 1, 2),
+                    div!(4, 0, 3),
+                ],
+            },
+        ];
+
+        run_compiler_tests(tests)
+    }
+
+    #[test]
+    fn test_arithmetic_divison() -> Result<()> {
+        let tests = vec![
+            TestCase {
+                input: "1 / 2;".to_string(),
+                expected_constants: vec![kint!(1), kint!(2)],
+                expected_instructions: vec![
+                    load!(0, 0),
+                    load!(1, 1),
+                    div!(2, 0, 1),
+                ],
+            },
+            TestCase {
+                input: "1 / 2 / 3;".to_string(),
+                expected_constants: vec![kint!(1), kint!(2), kint!(3)],
+                expected_instructions: vec![
+                    load!(0, 0),
+                    load!(1, 1),
+                    div!(2, 0, 1),
+                    load!(3, 2),
+                    div!(4, 2, 3),
                 ],
             },
         ];

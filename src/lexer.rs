@@ -66,6 +66,7 @@ impl<I: Iterator<Item = u8>> Lexer<I> {
             b'-' => new_token(TokenType::Minus, &[ch])?,
             b'*' => new_token(TokenType::Asterisk, &[ch])?,
             b'/' => new_token(TokenType::Slash, &[ch])?,
+            b'%' => new_token(TokenType::Percent, &[ch])?,
             b'<' => {
                 let peeked = self.peek_char()?;
                 if peeked == b'=' {
@@ -349,6 +350,7 @@ mod tests {
 
             10 == 10;
             10 != 9;
+            10 % 2;
             "foobar"
             "foo bar"
             [1, 2]
@@ -393,6 +395,10 @@ mod tests {
             Expected { expected_type: TokenType::Int, expected_literal: "10".to_string() },
             Expected { expected_type: TokenType::NotEq, expected_literal: "!=".to_string() },
             Expected { expected_type: TokenType::Int, expected_literal: "9".to_string() },
+            Expected { expected_type: TokenType::SemiColon, expected_literal: ";".to_string() },
+            Expected { expected_type: TokenType::Int, expected_literal: "10".to_string() },
+            Expected { expected_type: TokenType::Percent, expected_literal: "%".to_string() },
+            Expected { expected_type: TokenType::Int, expected_literal: "2".to_string() },
             Expected { expected_type: TokenType::SemiColon, expected_literal: ";".to_string() },
             Expected { expected_type: TokenType::String, expected_literal: "foobar".to_string() },
             Expected { expected_type: TokenType::String, expected_literal: "foo bar".to_string() },

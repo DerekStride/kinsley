@@ -16,6 +16,7 @@ pub enum Instruction {
     Sub { dest: Register, a: Register, b: Register },
     Mul { dest: Register, a: Register, b: Register },
     Div { dest: Register, a: Register, b: Register },
+    Modulo { dest: Register, a: Register, b: Register },
     Neg { dest: Register, src: Register },
     Lt { dest: Register, a: Register, b: Register },
     Le { dest: Register, a: Register, b: Register },
@@ -94,6 +95,7 @@ impl Instruction {
             Sub { dest, .. } => dest,
             Mul { dest, .. } => dest,
             Div { dest, .. } => dest,
+            Modulo { dest, .. } => dest,
             Neg { dest, .. } => dest,
             Lt { dest, .. } => dest,
             Le { dest, .. } => dest,
@@ -130,6 +132,12 @@ impl Instruction {
                 let a = try_update(*a, old, new);
                 let b = try_update(*b, old, new);
                 Div { dest, a, b }
+            },
+            Modulo { dest, a, b } => {
+                let dest = try_update(*dest, old, new);
+                let a = try_update(*a, old, new);
+                let b = try_update(*b, old, new);
+                Modulo { dest, a, b }
             },
             Lt { dest, a, b } => {
                 let dest = try_update(*dest, old, new);
@@ -246,6 +254,13 @@ macro_rules! mul {
 macro_rules! div {
     ($dest:expr, $a:expr, $b:expr) => (
         $crate::compiler::code::Instruction::Div { dest: $dest, a: $a, b: $b }
+    )
+}
+
+#[macro_export]
+macro_rules! modulo {
+    ($dest:expr, $a:expr, $b:expr) => (
+        $crate::compiler::code::Instruction::Modulo { dest: $dest, a: $a, b: $b }
     )
 }
 
